@@ -57,7 +57,7 @@ public final class PlayerLifecycleListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onRespawn(PlayerRespawnEvent event) {
         respawn.protect(event.getPlayer());
-        if (config.randomSpawn().respawn()) {
+        if (config.randomSpawn().respawn() && !event.isBedSpawn() && !event.isAnchorSpawn()) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> randomSpawn.randomTeleport(event.getPlayer()), 1L);
         }
     }
