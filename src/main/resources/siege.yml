@@ -1,0 +1,32 @@
+schema-version: 1
+core:
+  base-health: 1000
+  health-per-tribe-level: 80
+  regen-delay-minutes: 10
+  regen-percent-per-minute: 0.01
+  rebuild-delay-hours: 6
+  rebuild-base-cost: 8000
+  rebuild-cost-per-level: 1000
+damage:
+  no-war-multiplier: 0.35
+  official-war-multiplier: 1.0
+  three-plus-attackers-multiplier: 1.25
+  no-defenders-online-multiplier: 0.5
+  tools:
+    IRON_PICKAXE: 4
+    DIAMOND_PICKAXE: 7
+    NETHERITE_PICKAXE: 10
+    TNT: 25
+    SIEGE_EXPLOSIVE: 80
+    SIEGE_HAMMER: 30
+destruction:
+  xp-transfer-ratio: 0.08
+  xp-transfer-min: 500
+  xp-transfer-max: 25000
+  treasury-loot-ratio: 0.12
+  treasury-loot-min: 0
+  treasury-loot-max: 50000
+war:
+  preparation-minutes: 30
+  active-hours: 24
+  cooldown-hours: 12

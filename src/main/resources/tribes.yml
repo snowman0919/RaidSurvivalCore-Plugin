@@ -1,0 +1,54 @@
+schema-version: 1
+tribe:
+  creation:
+    minimum-playtime-hours: 12
+    minimum-completed-advancements: 15
+    minimum-advancement-points: 40
+    currency-cost: 5000
+    maximum-name-length: 16
+    maximum-tag-length: 5
+  pvp:
+    allow-friendly-fire: false
+    proximity-ignore-same-tribe: true
+    proximity-ignore-allies: true
+    bounty-same-tribe-claim: false
+  absorption:
+    enabled: true
+    minimum-total-playtime-hours: 2
+    newbie-immunity-hours: 4
+    recruit-restriction-minutes: 30
+    forced-transfer-cooldown-hours: 24
+    voluntary-leave-delay-hours: 6
+  capture:
+    enabled: true
+    required-domination-points: 5
+    point-expiry-hours: 24
+    official-war-multiplier: 2.0
+    core-breached-bonus: 2
+    transfer-cooldown-hours: 72
+    owner-immune: true
+    officer-required-points-multiplier: 2.0
+    carried-currency-loot-ratio: 0.05
+    carried-currency-loot-min: 0
+    carried-currency-loot-max: 2000
+  level:
+    max-level: 30
+    formula-base: 1000
+    formula-exponent: 1.65
+    table:
+      1: { max-members: 5, max-cores: 1, radius: 24, treasury-cap: 20000 }
+      5: { max-members: 8, max-cores: 1, radius: 32, treasury-cap: 60000 }
+      10: { max-members: 12, max-cores: 2, radius: 40, treasury-cap: 150000 }
+      15: { max-members: 16, max-cores: 2, radius: 48, treasury-cap: 300000 }
+      20: { max-members: 22, max-cores: 3, radius: 56, treasury-cap: 600000 }
+      25: { max-members: 28, max-cores: 4, radius: 64, treasury-cap: 1000000 }
+      30: { max-members: 36, max-cores: 5, radius: 72, treasury-cap: 2000000 }
+advancements:
+  normal-points: 1
+  goal-points: 2
+  challenge-points: 5
+  exclude-recipes: true
+  exclude-root-advancements: true
+  bonus:
+    minecraft:story/enter_the_nether: 3
+    minecraft:end/kill_dragon: 20

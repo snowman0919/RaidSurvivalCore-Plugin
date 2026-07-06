@@ -1,0 +1,20 @@
+schema-version: 1
+currency:
+  name: Crown
+  max-personal-balance: 9000000000000
+  max-tribe-balance: 9000000000000
+  pay-tax-rate: 0.02
+  new-account-starting-balance: 0
+income:
+  hourly-general-target-min: 300
+  hourly-general-target-max: 800
+  mob-low-roll-min: 1
+  mob-low-roll-max: 5
+costs:
+  tribe-creation: 5000
+  core-creation: 15000
+  war-declaration-base: 10000
+  random-teleport: 0
+limits:
+  daily-player-transfer: 50000
+  new-account-transfer-hours: 4

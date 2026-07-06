@@ -1,0 +1,21 @@
+schema-version: 1
+territory:
+  active-core-min-distance: 256
+  random-spawn-min-distance-from-core: 256
+  forbidden-worlds: []
+  spawn-min-distance: 512
+  y-min: -64
+  y-max: 320
+protection:
+  block-break: true
+  block-place: true
+  containers: true
+  redstone: true
+  fluids: true
+  explosions: true
+defense-effects:
+  enabled: true
+  apply-to-neutral: false
+  apply-to-allies: false
+  apply-to-newbie: false
+  war-reduction: 0.25

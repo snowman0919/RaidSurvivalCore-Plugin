@@ -1,0 +1,94 @@
+name: RaidSurvivalCore
+version: ${version}
+main: com.example.raidsurvivalcore.RaidSurvivalCorePlugin
+api-version: '26.1'
+authors: [RaidSurvivalCore]
+description: Core raid survival combat, protection, spawn, bounty, and tracking rules.
+softdepend: [Vault]
+libraries:
+  - org.xerial:sqlite-jdbc:3.50.3.0
+commands:
+  raidcore:
+    description: RaidSurvivalCore administration command.
+    usage: /raidcore
+    permission: raidcore.admin
+  bounty:
+    description: Bounty commands.
+    usage: /bounty <set|list|top|info>
+  tribe:
+    description: Tribe commands.
+    usage: /tribe
+  tc:
+    description: Send a tribe chat message.
+    usage: /tc <message>
+    permission: raidcore.tribe.chat
+  money:
+    description: Money commands.
+    usage: /money
+  shop:
+    description: Server shop command.
+    usage: /shop
+permissions:
+  raidcore.admin:
+    description: Grants all RaidSurvivalCore administrative permissions.
+    default: op
+    children:
+      raidcore.reload: true
+      raidcore.combat.bypass: true
+      raidcore.proximity.bypass: true
+      raidcore.randomspawn.bypass: true
+      raidcore.newbie.bypass: true
+      raidcore.respawnprotection.bypass: true
+      raidcore.tracker.bypass: true
+      raidcore.command.bypass: true
+      raidcore.bounty.admin: true
+      raidcore.tribe.admin: true
+      raidcore.economy.admin: true
+  raidcore.reload:
+    default: op
+  raidcore.combat.bypass:
+    default: op
+  raidcore.proximity.bypass:
+    default: op
+  raidcore.randomspawn.bypass:
+    default: op
+  raidcore.newbie.bypass:
+    default: op
+  raidcore.respawnprotection.bypass:
+    default: op
+  raidcore.tracker.bypass:
+    default: op
+  raidcore.command.bypass:
+    default: op
+  raidcore.bounty.admin:
+    default: op
+  raidcore.tribe.create:
+    default: true
+  raidcore.tribe.invite:
+    default: true
+  raidcore.tribe.manage:
+    default: false
+  raidcore.tribe.treasury.withdraw:
+    default: false
+  raidcore.tribe.core.create:
+    default: false
+  raidcore.tribe.core.manage:
+    default: false
+  raidcore.tribe.war.declare:
+    default: false
+  raidcore.tribe.chat:
+    default: true
+  raidcore.chat.spy:
+    default: op
+  raidcore.economy.pay:
+    default: true
+  raidcore.economy.admin:
+    default: op
+  raidcore.tribe.admin:
+    default: op
+  raidcore.territory.bypass:
+    default: op
+  raidcore.core.damage.bypass:
+    default: op
+  raidcore.capture.bypass:
+    default: op

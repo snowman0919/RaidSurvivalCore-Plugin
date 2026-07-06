@@ -1,0 +1,112 @@
+proximity-penalty:
+  enabled: true
+  radius: 15.0
+  y-threshold: 8.0
+  always-detect-radius: 8.0
+  grace-period-seconds: 20
+  damage-interval-seconds: 5
+  base-damage: 1.0
+  increase-per-stage: 0.5
+  max-damage: 8.0
+  extra-player-multiplier-step: 0.25
+  max-multiplier: 2.0
+  scan-interval-ticks: 20
+  attack-exemption-seconds: 15
+  reset-after-separated-seconds: 10
+  excluded-worlds: []
+  safe-zones: []
+combat:
+  enabled: true
+  tag-seconds: 20
+  last-attacker-memory-seconds: 12
+  actionbar: true
+healing:
+  natural-regeneration: 0.0
+  saturation-regeneration: 0.0
+  regeneration-effect: 0.5
+  instant-health: 0.5
+  golden-apple: 0.5
+  enchanted-golden-apple: 0.35
+  beacon-regeneration: 0.0
+  absorption: 0.5
+  allow-totem: true
+  bypass-plugin-forced-heal: true
+combat-log:
+  enabled: true
+  action: KILL
+  reconnect-grace-seconds: 3
+  bypass-permission: raidcore.combat.bypass
+random-spawn:
+  enabled: true
+  first-join: true
+  respawn: true
+  world: world
+  center-x: 0.0
+  center-z: 0.0
+  min-radius: 500.0
+  max-radius: 5000.0
+  max-attempts: 40
+  min-distance-from-players: 64.0
+  fallback:
+    world: world
+    x: 0.5
+    y: 80.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+  forbidden-biomes: []
+  forbidden-zones: []
+new-player-protection:
+  enabled: true
+  playtime-minutes: 30
+  disable-on-attack: true
+  disable-on-nether: true
+respawn-protection:
+  enabled: true
+  seconds: 30
+  disable-on-attack: true
+  block-chest-open: false
+  block-item-pickup: false
+  block-portal: false
+death-location:
+  enabled: true
+  recovery-compass: true
+  item-despawn-minutes: 5
+bounty:
+  enabled: true
+  min-amount: 10
+  max-amount: 1000000
+  use-vault-if-present: true
+  internal-starting-tokens: 0
+anti-farming:
+  enabled: true
+  window-minutes: 30
+  full-reward-kills: 2
+  reduced-from-kill: 3
+  no-reward-from-kill: 5
+  reduced-multiplier: 0.5
+tracker:
+  enabled: true
+  update-seconds: 30
+  min-distance: 500.0
+  max-distance: 5000.0
+  consume-token: false
+  token-cost: 1
+  compass-name: "<gold>추적 나침반</gold>"
+database:
+  file: "raidcore.db"
+  autosave-seconds: 120
+performance:
+  actionbar-interval-ticks: 20
+  cleanup-interval-seconds: 5
+combat-restrictions:
+  enabled: true
+  blocked-commands: [spawn, home, tp, tpa, warp, back, rtp]
+  allowed-commands: []
+  block-chorus-fruit: true
+  block-vehicle: true
+  block-nether-portal: true
+  block-end-portal: true
+  block-elytra: false
+  block-firework: false
+  block-ender-pearl: false

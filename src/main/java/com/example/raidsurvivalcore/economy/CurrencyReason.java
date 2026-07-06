@@ -1,0 +1,20 @@
+package com.example.raidsurvivalcore.economy;
+
+public enum CurrencyReason {
+    QUEST_REWARD,
+    MOB_REWARD,
+    SHOP_SELL,
+    SHOP_BUY,
+    PLAYER_TRANSFER,
+    TRIBE_DEPOSIT,
+    TRIBE_WITHDRAW,
+    TRIBE_CREATION,
+    CORE_CREATION,
+    CORE_REPAIR,
+    CORE_LOOT,
+    WAR_DECLARATION,
+    BOUNTY_CREATE,
+    BOUNTY_REWARD,
+    ADMIN_ADJUSTMENT,
+    TAX
+}

@@ -1,0 +1,10 @@
+schema-version: 1
+chat:
+  tribal-obfuscation:
+    enabled: true
+    preserve-spaces: true
+    preserve-basic-punctuation: true
+    preserve-message-length: true
+    staff-spy-permission: raidcore.chat.spy
+    log-plaintext-to-console: true
+    persist-plaintext: false
