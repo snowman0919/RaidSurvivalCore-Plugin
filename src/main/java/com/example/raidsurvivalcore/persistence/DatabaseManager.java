@@ -61,6 +61,11 @@ public final class DatabaseManager {
             if (version < 2) {
                 migrateV2(s);
                 s.executeUpdate("UPDATE schema_version SET version = 2");
+                version = 2;
+            }
+            if (version < 3) {
+                migrateV3(s);
+                s.executeUpdate("UPDATE schema_version SET version = 3");
             }
             c.commit();
         } catch (SQLException e) {
@@ -100,6 +105,10 @@ public final class DatabaseManager {
         s.executeUpdate("CREATE TABLE IF NOT EXISTS player_activity_limits (player_uuid TEXT NOT NULL, bucket TEXT NOT NULL, window_start INTEGER NOT NULL, amount INTEGER NOT NULL DEFAULT 0 CHECK(amount >= 0), PRIMARY KEY(player_uuid, bucket, window_start))");
         s.executeUpdate("CREATE TABLE IF NOT EXISTS core_damage_contributions (core_id TEXT NOT NULL REFERENCES tribe_cores(core_id) ON DELETE CASCADE, player_uuid TEXT NOT NULL, tribe_id INTEGER, damage REAL NOT NULL CHECK(damage >= 0), updated_at INTEGER NOT NULL, PRIMARY KEY(core_id, player_uuid))");
         s.executeUpdate("CREATE TABLE IF NOT EXISTS core_destruction_events (event_id TEXT PRIMARY KEY, core_id TEXT NOT NULL, attacker_tribe_id INTEGER, defender_tribe_id INTEGER NOT NULL, xp_transferred INTEGER NOT NULL CHECK(xp_transferred >= 0), currency_looted INTEGER NOT NULL CHECK(currency_looted >= 0), created_at INTEGER NOT NULL)");
+    }
+
+    private void migrateV3(Statement s) throws SQLException {
+        s.executeUpdate("CREATE TABLE IF NOT EXISTS tribe_homes (tribe_id INTEGER PRIMARY KEY REFERENCES tribes(id) ON DELETE CASCADE, world_uuid TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, z REAL NOT NULL, yaw REAL NOT NULL, pitch REAL NOT NULL, updated_by_uuid TEXT NOT NULL, updated_at INTEGER NOT NULL)");
     }
 
     public void shutdown() {

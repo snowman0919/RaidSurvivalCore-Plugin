@@ -12,14 +12,20 @@ import java.util.logging.Logger;
 public final class EconomyService {
     private final DatabaseManager database;
     private final Logger logger;
-    private final long maxPersonalBalance;
-    private final double payTaxRate;
+    private volatile EconomySettings settings;
 
-    public EconomyService(DatabaseManager database, Logger logger, long maxPersonalBalance, double payTaxRate) {
+    public EconomyService(DatabaseManager database, Logger logger, EconomySettings settings) {
         this.database = database;
         this.logger = logger;
-        this.maxPersonalBalance = maxPersonalBalance;
-        this.payTaxRate = payTaxRate;
+        this.settings = settings;
+    }
+
+    public void reload(EconomySettings settings) {
+        this.settings = settings;
+    }
+
+    public EconomySettings settings() {
+        return settings;
     }
 
     public String personalAccount(UUID uuid) {
@@ -31,7 +37,7 @@ public final class EconomyService {
     }
 
     public CompletableFuture<Boolean> pay(UUID from, UUID to, long amount) {
-        return CompletableFuture.supplyAsync(() -> transfer(personalAccount(from), personalAccount(to), from, amount, CurrencyReason.PLAYER_TRANSFER, payTaxRate), database.executor());
+        return CompletableFuture.supplyAsync(() -> transfer(personalAccount(from), personalAccount(to), from, amount, CurrencyReason.PLAYER_TRANSFER, settings.payTaxRate()), database.executor());
     }
 
     public CompletableFuture<Boolean> adminAdjust(UUID actor, UUID target, long amount, CurrencyReason reason, String mode) {
@@ -41,7 +47,7 @@ public final class EconomyService {
                 ensureAccount(c, personalAccount(target), "PLAYER");
                 long current = balanceSync(c, personalAccount(target));
                 long next = switch (mode) {
-                    case "add" -> EconomyRules.checkedAdd(current, amount, maxPersonalBalance);
+                    case "add" -> EconomyRules.checkedAdd(current, amount, settings.maxPersonalBalance());
                     case "remove" -> EconomyRules.checkedSubtract(current, amount);
                     case "set" -> amount;
                     default -> throw new IllegalArgumentException("unknown mode");
@@ -57,6 +63,25 @@ public final class EconomyService {
         }, database.executor());
     }
 
+    public CompletableFuture<Boolean> award(UUID target, long amount, CurrencyReason reason) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (amount <= 0) return false;
+            try (var c = database.connection()) {
+                c.setAutoCommit(false);
+                String account = personalAccount(target);
+                ensureAccount(c, account, "PLAYER");
+                long current = balanceSync(c, account);
+                setBalance(c, account, EconomyRules.checkedAdd(current, amount, settings.maxPersonalBalance()));
+                insertTx(c, UUID.randomUUID().toString(), null, null, account, amount, reason.name(), 0);
+                c.commit();
+                return true;
+            } catch (Exception e) {
+                logger.warning("RaidSurvivalCore economy reward failed: " + e.getMessage());
+                return false;
+            }
+        }, database.executor());
+    }
+
     public boolean transfer(String source, String target, UUID actor, long amount, CurrencyReason reason, double taxRate) {
         try (var c = database.connection()) {
             c.setAutoCommit(false);
@@ -67,7 +92,7 @@ public final class EconomyService {
             long debit = EconomyRules.checkedAdd(amount, tax, Long.MAX_VALUE);
             long targetBalance = balanceSync(c, target);
             setBalance(c, source, EconomyRules.checkedSubtract(sourceBalance, debit));
-            setBalance(c, target, EconomyRules.checkedAdd(targetBalance, amount, maxPersonalBalance));
+            setBalance(c, target, EconomyRules.checkedAdd(targetBalance, amount, settings.maxPersonalBalance()));
             insertTx(c, UUID.randomUUID().toString(), actor == null ? null : actor.toString(), source, target, amount, reason.name(), tax);
             c.commit();
             return true;
@@ -88,10 +113,12 @@ public final class EconomyService {
     }
 
     public void ensureAccount(java.sql.Connection c, String accountId, String type) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("INSERT OR IGNORE INTO currency_accounts(account_id, account_type, balance, updated_at) VALUES(?,?,0,?)")) {
+        long startingBalance = "PLAYER".equals(type) ? settings.newAccountStartingBalance() : 0;
+        try (PreparedStatement ps = c.prepareStatement("INSERT OR IGNORE INTO currency_accounts(account_id, account_type, balance, updated_at) VALUES(?,?,?,?)")) {
             ps.setString(1, accountId);
             ps.setString(2, type);
-            ps.setLong(3, Instant.now().toEpochMilli());
+            ps.setLong(3, startingBalance);
+            ps.setLong(4, Instant.now().toEpochMilli());
             ps.executeUpdate();
         }
     }

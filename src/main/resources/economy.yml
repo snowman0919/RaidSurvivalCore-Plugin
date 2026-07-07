@@ -4,7 +4,7 @@ currency:
   max-personal-balance: 9000000000000
   max-tribe-balance: 9000000000000
   pay-tax-rate: 0.02
-  new-account-starting-balance: 0
+  new-account-starting-balance: 5000
 income:
   hourly-general-target-min: 300
   hourly-general-target-max: 800

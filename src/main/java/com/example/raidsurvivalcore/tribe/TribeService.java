@@ -257,6 +257,55 @@ public final class TribeService {
         }, database.executor());
     }
 
+    public CompletableFuture<Boolean> setHome(UUID actor, UUID worldUuid, double x, double y, double z, float yaw, float pitch) {
+        return CompletableFuture.supplyAsync(() -> {
+            Optional<TribeMember> member = snapshot().member(actor);
+            if (member.isEmpty() || member.get().role() != TribeRole.OWNER) return false;
+            try (var c = database.connection(); PreparedStatement ps = c.prepareStatement("INSERT INTO tribe_homes(tribe_id,world_uuid,x,y,z,yaw,pitch,updated_by_uuid,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(tribe_id) DO UPDATE SET world_uuid=excluded.world_uuid, x=excluded.x, y=excluded.y, z=excluded.z, yaw=excluded.yaw, pitch=excluded.pitch, updated_by_uuid=excluded.updated_by_uuid, updated_at=excluded.updated_at")) {
+                ps.setLong(1, member.get().tribeId());
+                ps.setString(2, worldUuid.toString());
+                ps.setDouble(3, x);
+                ps.setDouble(4, y);
+                ps.setDouble(5, z);
+                ps.setFloat(6, yaw);
+                ps.setFloat(7, pitch);
+                ps.setString(8, actor.toString());
+                ps.setLong(9, Instant.now().toEpochMilli());
+                ps.executeUpdate();
+                audit(c, member.get().tribeId(), actor, null, "TRIBE_HOME_SET", "world=" + worldUuid + ",x=" + x + ",y=" + y + ",z=" + z);
+                return true;
+            } catch (SQLException e) {
+                logger.warning("RaidSurvivalCore tribe home set failed: " + e.getMessage());
+                return false;
+            }
+        }, database.executor());
+    }
+
+    public CompletableFuture<Optional<TribeHome>> home(UUID player) {
+        return CompletableFuture.supplyAsync(() -> {
+            Optional<TribeMember> member = snapshot().member(player);
+            if (member.isEmpty()) return Optional.empty();
+            try (var c = database.connection(); PreparedStatement ps = c.prepareStatement("SELECT tribe_id, world_uuid, x, y, z, yaw, pitch FROM tribe_homes WHERE tribe_id=?")) {
+                ps.setLong(1, member.get().tribeId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) return Optional.empty();
+                    return Optional.of(new TribeHome(
+                        rs.getLong("tribe_id"),
+                        UUID.fromString(rs.getString("world_uuid")),
+                        rs.getDouble("x"),
+                        rs.getDouble("y"),
+                        rs.getDouble("z"),
+                        rs.getFloat("yaw"),
+                        rs.getFloat("pitch")
+                    ));
+                }
+            } catch (SQLException e) {
+                logger.warning("RaidSurvivalCore tribe home lookup failed: " + e.getMessage());
+                return Optional.empty();
+            }
+        }, database.executor());
+    }
+
     public CompletableFuture<String> topSummary() {
         return CompletableFuture.supplyAsync(() -> {
             StringBuilder out = new StringBuilder();
@@ -268,7 +317,7 @@ public final class TribeService {
             } catch (SQLException e) {
                 logger.warning("RaidSurvivalCore tribe top failed: " + e.getMessage());
             }
-            return out.isEmpty() ? "No tribes." : out.toString().stripTrailing();
+            return out.isEmpty() ? "생성된 부족이 없습니다." : out.toString().stripTrailing();
         }, database.executor());
     }
 

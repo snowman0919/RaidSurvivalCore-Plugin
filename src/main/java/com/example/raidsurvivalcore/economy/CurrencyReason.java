@@ -6,6 +6,8 @@ public enum CurrencyReason {
     SHOP_SELL,
     SHOP_BUY,
     PLAYER_TRANSFER,
+    STARTING_BALANCE,
+    PLAYTIME_REWARD,
     TRIBE_DEPOSIT,
     TRIBE_WITHDRAW,
     TRIBE_CREATION,

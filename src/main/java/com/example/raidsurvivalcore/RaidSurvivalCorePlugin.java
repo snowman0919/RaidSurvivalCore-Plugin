@@ -22,14 +22,18 @@ import com.example.raidsurvivalcore.protection.RespawnProtectionManager;
 import com.example.raidsurvivalcore.proximity.ProximityManager;
 import com.example.raidsurvivalcore.spawn.RandomSpawnManager;
 import com.example.raidsurvivalcore.task.ActionBarTask;
+import com.example.raidsurvivalcore.economy.EconomyIncomeManager;
+import com.example.raidsurvivalcore.economy.EconomySettings;
 import com.example.raidsurvivalcore.economy.EconomyService;
 import com.example.raidsurvivalcore.listener.TribeChatListener;
 import com.example.raidsurvivalcore.territory.TerritoryService;
 import com.example.raidsurvivalcore.tracker.TrackerManager;
 import com.example.raidsurvivalcore.tribe.TribeService;
 import com.example.raidsurvivalcore.util.ResourceInstaller;
+import java.io.File;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -47,6 +51,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
     private DeathLocationManager deathLocation;
     private BountyManager bounty;
     private EconomyService economy;
+    private EconomyIncomeManager economyIncome;
     private TribeService tribes;
     private TribeChatState tribeChat;
     private TerritoryService territory;
@@ -79,7 +84,8 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         database = new DatabaseManager(this);
         database.start(cfg.database().file());
         playerData = new PlayerDataRepository(database, getLogger(), cfg.bounty().internalStartingTokens());
-        economy = new EconomyService(database, getLogger(), 9_000_000_000_000L, 0.02);
+        economy = new EconomyService(database, getLogger(), loadEconomySettings());
+        economyIncome = new EconomyIncomeManager(this, economy);
         tribes = new TribeService(database, economy, getLogger(), 5000L);
         tribeChat = new TribeChatState();
         territory = new TerritoryService(database, getLogger());
@@ -125,6 +131,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         randomSpawn.reload(cfg);
         deathLocation.reload(cfg);
         bounty.reload(cfg);
+        economy.reload(loadEconomySettings());
         proximity.reload(cfg);
         tracker.reload(cfg);
         tribes.reloadSnapshot();
@@ -140,6 +147,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         proximity.start();
         tracker.start();
         actionBars.start(cfg.performance().actionbarTicks());
+        economyIncome.start();
         cleanupTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
             combat.cleanupAndNotify();
             respawn.cleanup();
@@ -154,13 +162,14 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(restrictionListener, this);
         Bukkit.getPluginManager().registerEvents(lifecycleListener, this);
         Bukkit.getPluginManager().registerEvents(new TribeChatListener(tribes, tribeChat, getLogger()), this);
+        Bukkit.getPluginManager().registerEvents(economyIncome, this);
 
         RaidCoreCommand executor = new RaidCoreCommand(this::reloadRaidCore, combat, proximity, randomSpawn, bounty, newbie, messages, economy);
         PluginCommand raidcore = getCommand("raidcore");
         if (raidcore != null) raidcore.setExecutor(executor);
         PluginCommand bountyCommand = getCommand("bounty");
         if (bountyCommand != null) bountyCommand.setExecutor(executor);
-        TribeCommand tribeCommand = new TribeCommand(tribes, tribeChat, messages);
+        TribeCommand tribeCommand = new TribeCommand(this, tribes, tribeChat, messages, combat);
         PluginCommand tribe = getCommand("tribe");
         if (tribe != null) tribe.setExecutor(tribeCommand);
         PluginCommand tc = getCommand("tc");
@@ -176,9 +185,23 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         if (proximity != null) proximity.stop();
         if (tracker != null) tracker.stop();
         if (actionBars != null) actionBars.stop();
+        if (economyIncome != null) economyIncome.stop();
         if (cleanupTask != -1) Bukkit.getScheduler().cancelTask(cleanupTask);
         if (autosaveTask != -1) Bukkit.getScheduler().cancelTask(autosaveTask);
         cleanupTask = -1;
         autosaveTask = -1;
+    }
+
+    private EconomySettings loadEconomySettings() {
+        ResourceInstaller.saveIfMissing(this, "economy.yml");
+        YamlConfiguration yml = YamlConfiguration.loadConfiguration(new File(getDataFolder(), "economy.yml"));
+        long maxPersonal = Math.max(0, yml.getLong("currency.max-personal-balance", 9_000_000_000_000L));
+        double tax = Math.max(0.0, Math.min(1.0, yml.getDouble("currency.pay-tax-rate", 0.02)));
+        long starting = Math.max(0, yml.getLong("currency.new-account-starting-balance", 5000L));
+        long hourlyMin = Math.max(0, yml.getLong("income.hourly-general-target-min", 300L));
+        long hourlyMax = Math.max(hourlyMin, yml.getLong("income.hourly-general-target-max", 800L));
+        long mobMin = Math.max(0, yml.getLong("income.mob-low-roll-min", 1L));
+        long mobMax = Math.max(mobMin, yml.getLong("income.mob-low-roll-max", 5L));
+        return new EconomySettings(maxPersonal, tax, starting, hourlyMin, hourlyMax, mobMin, mobMax);
     }
 }
