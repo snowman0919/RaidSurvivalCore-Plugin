@@ -202,6 +202,9 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         long hourlyMax = Math.max(hourlyMin, yml.getLong("income.hourly-general-target-max", 800L));
         long mobMin = Math.max(0, yml.getLong("income.mob-low-roll-min", 1L));
         long mobMax = Math.max(mobMin, yml.getLong("income.mob-low-roll-max", 5L));
-        return new EconomySettings(maxPersonal, tax, starting, hourlyMin, hourlyMax, mobMin, mobMax);
+        long advancementTask = Math.max(0, yml.getLong("income.advancement-task-reward", 100L));
+        long advancementGoal = Math.max(0, yml.getLong("income.advancement-goal-reward", 300L));
+        long advancementChallenge = Math.max(0, yml.getLong("income.advancement-challenge-reward", 1000L));
+        return new EconomySettings(maxPersonal, tax, starting, hourlyMin, hourlyMax, mobMin, mobMax, advancementTask, advancementGoal, advancementChallenge);
     }
 }

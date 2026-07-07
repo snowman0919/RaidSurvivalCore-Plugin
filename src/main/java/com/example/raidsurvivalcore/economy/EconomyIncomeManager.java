@@ -1,11 +1,14 @@
 package com.example.raidsurvivalcore.economy;
 
+import io.papermc.paper.advancement.AdvancementDisplay;
 import java.util.concurrent.ThreadLocalRandom;
 import org.bukkit.Bukkit;
+import org.bukkit.advancement.Advancement;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 
@@ -36,7 +39,7 @@ public final class EconomyIncomeManager implements Listener {
         boolean firstJoin = !player.hasPlayedBefore();
         if (starting <= 0) return;
         economy.balance(player.getUniqueId()).thenRun(() -> {
-            if (firstJoin && player.isOnline()) Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage("신규 유저 시작 보상으로 " + starting + " Crown을 받았습니다."));
+            if (firstJoin) notifyReward(player, starting, "신규 유저 시작 보상");
         });
     }
 
@@ -48,7 +51,17 @@ public final class EconomyIncomeManager implements Listener {
         long amount = random(settings.mobLowRollMin(), settings.mobLowRollMax());
         if (amount <= 0) return;
         economy.award(killer.getUniqueId(), amount, CurrencyReason.MOB_REWARD).thenAccept(ok -> {
-            if (ok && killer.isOnline()) Bukkit.getScheduler().runTask(plugin, () -> killer.sendMessage("몹 처치 보상 +" + amount + " Crown"));
+            if (ok) notifyReward(killer, amount, "몹 처치 보상");
+        });
+    }
+
+    @EventHandler
+    public void onAdvancementDone(PlayerAdvancementDoneEvent event) {
+        Player player = event.getPlayer();
+        long amount = advancementReward(event.getAdvancement());
+        if (amount <= 0) return;
+        economy.award(player.getUniqueId(), amount, CurrencyReason.ADVANCEMENT_REWARD).thenAccept(ok -> {
+            if (ok) notifyReward(player, amount, "도전과제 달성 보상");
         });
     }
 
@@ -59,9 +72,27 @@ public final class EconomyIncomeManager implements Listener {
         if (amount <= 0) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
             economy.award(player.getUniqueId(), amount, CurrencyReason.PLAYTIME_REWARD).thenAccept(ok -> {
-                if (ok && player.isOnline()) Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage("플레이 보상 +" + amount + " Crown"));
+                if (ok) notifyReward(player, amount, "플레이 보상");
             });
         }
+    }
+
+    private long advancementReward(Advancement advancement) {
+        AdvancementDisplay display = advancement.getDisplay();
+        if (display == null) return 0;
+        EconomySettings settings = economy.settings();
+        return switch (display.frame()) {
+            case TASK -> settings.advancementTaskReward();
+            case GOAL -> settings.advancementGoalReward();
+            case CHALLENGE -> settings.advancementChallengeReward();
+        };
+    }
+
+    private void notifyReward(Player player, long amount, String reason) {
+        if (amount <= 0 || !player.isOnline()) return;
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (player.isOnline()) player.sendMessage(reason + "으로 " + amount + " Crown을 획득했습니다.");
+        });
     }
 
     private long random(long min, long max) {

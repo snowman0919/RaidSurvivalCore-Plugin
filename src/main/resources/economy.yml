@@ -10,6 +10,9 @@ income:
   hourly-general-target-max: 800
   mob-low-roll-min: 1
   mob-low-roll-max: 5
+  advancement-task-reward: 100
+  advancement-goal-reward: 300
+  advancement-challenge-reward: 1000
 costs:
   tribe-creation: 5000
   core-creation: 15000

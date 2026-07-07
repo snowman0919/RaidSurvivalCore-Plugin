@@ -7,6 +7,9 @@ public record EconomySettings(
     long hourlyGeneralTargetMin,
     long hourlyGeneralTargetMax,
     long mobLowRollMin,
-    long mobLowRollMax
+    long mobLowRollMax,
+    long advancementTaskReward,
+    long advancementGoalReward,
+    long advancementChallengeReward
 ) {
 }

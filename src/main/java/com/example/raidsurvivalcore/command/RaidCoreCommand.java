@@ -133,7 +133,13 @@ public final class RaidCoreCommand implements TabExecutor {
             usage(sender, "사용법: /raidcore economy add|remove|set <플레이어> <금액> <사유>");
             return;
         }
-        economy.adminAdjust(actor, target.getUniqueId(), amount, reason, mode).thenAccept(ok -> sender.sendMessage(ok ? "경제 정보를 수정했습니다." : "경제 정보 수정 실패: 잔액 부족, 한도 초과, 또는 내부 DB 오류입니다."));
+        economy.adminAdjust(actor, target.getUniqueId(), amount, reason, mode).thenAccept(ok -> {
+            sender.sendMessage(ok ? "경제 정보를 수정했습니다." : "경제 정보 수정 실패: 잔액 부족, 한도 초과, 또는 내부 DB 오류입니다.");
+            Player online = Bukkit.getPlayer(target.getUniqueId());
+            if (ok && mode.equals("add") && online != null) {
+                Bukkit.getScheduler().runTask(Bukkit.getPluginManager().getPlugin("RaidSurvivalCore"), () -> online.sendMessage("관리자 지급으로 " + amount + " Crown을 획득했습니다."));
+            }
+        });
     }
 
     private boolean bountyCommand(CommandSender sender, String[] args) {
