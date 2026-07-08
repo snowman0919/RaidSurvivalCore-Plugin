@@ -143,9 +143,13 @@ public final class RaidCoreCommand implements TabExecutor {
     }
 
     private boolean bountyCommand(CommandSender sender, String[] args) {
-        if (args.length == 0) return usage(sender, "사용법: /bounty set <플레이어> <금액> 또는 /bounty list");
+        if (args.length == 0) return usage(sender, "사용법: /bounty set <플레이어> <금액> | /bounty item <플레이어> [수량] | /bounty list");
         if (args[0].equalsIgnoreCase("set") && !(sender instanceof Player)) {
             sender.sendMessage("현상금 등록은 플레이어만 사용할 수 있습니다.");
+            return true;
+        }
+        if (args[0].equalsIgnoreCase("item") && !(sender instanceof Player)) {
+            sender.sendMessage("아이템 현상금 등록은 플레이어만 사용할 수 있습니다.");
             return true;
         }
         if (args[0].equalsIgnoreCase("set") && sender instanceof Player player && args.length >= 3) {
@@ -159,15 +163,27 @@ public final class RaidCoreCommand implements TabExecutor {
             bounty.addBounty(player, target, amount);
             return true;
         }
+        if (args[0].equalsIgnoreCase("item") && sender instanceof Player player && args.length >= 2) {
+            OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
+            if (target.getUniqueId().equals(player.getUniqueId())) {
+                sender.sendMessage("자기 자신에게는 현상금을 걸 수 없습니다.");
+                return true;
+            }
+            Integer amount = args.length >= 3 ? parsePositiveInt(sender, args[2]) : 1;
+            if (amount == null) return true;
+            bounty.addItemBounty(player, target, amount);
+            return true;
+        }
         if (args[0].equalsIgnoreCase("list") || args[0].equalsIgnoreCase("top")) {
-            bounty.listTop().thenAccept(rows -> sender.sendMessage(String.join("\n", rows.isEmpty() ? List.of("등록된 현상금이 없습니다.") : rows)));
+            bounty.listTop().thenAccept(rows -> Bukkit.getScheduler().runTask(Bukkit.getPluginManager().getPlugin("RaidSurvivalCore"), () -> sender.sendMessage(String.join("\n", rows.isEmpty() ? List.of("등록된 현상금이 없습니다.") : rows))));
             return true;
         }
         if (args[0].equalsIgnoreCase("info") && args.length >= 2) {
-            sender.sendMessage("저장된 현상금 목록은 /bounty top으로 확인하세요.");
+            OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
+            bounty.info(target.getUniqueId()).thenAccept(info -> Bukkit.getScheduler().runTask(Bukkit.getPluginManager().getPlugin("RaidSurvivalCore"), () -> sender.sendMessage(info)));
             return true;
         }
-        return usage(sender, "사용법: /bounty set <플레이어> <금액> 또는 /bounty list|top|info <플레이어>");
+        return usage(sender, "사용법: /bounty set <플레이어> <금액> | /bounty item <플레이어> [수량] | /bounty list|top|info <플레이어>");
     }
 
     private void combatSub(CommandSender sender, String[] args) {
@@ -241,7 +257,7 @@ public final class RaidCoreCommand implements TabExecutor {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (command.getName().equalsIgnoreCase("bounty")) return switch (args.length) {
-            case 1 -> filter(List.of("set", "list", "top", "info"), args[0]);
+            case 1 -> filter(List.of("set", "item", "list", "top", "info"), args[0]);
             case 2 -> filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
             default -> List.of();
         };

@@ -26,6 +26,10 @@ public final class CombatManager {
         this.config = config;
     }
 
+    public RaidCoreConfig config() {
+        return config;
+    }
+
     public void tag(Player attacker, Player victim) {
         if (!config.combat().enabled()) return;
         if (attacker.hasPermission("raidcore.combat.bypass") || victim.hasPermission("raidcore.combat.bypass")) return;

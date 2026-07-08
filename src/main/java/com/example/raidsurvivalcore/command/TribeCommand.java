@@ -65,7 +65,8 @@ public final class TribeCommand implements TabExecutor {
                     tribes.accept(player.getUniqueId(), args[1]).thenAccept(ok -> Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage(ok ? messages.prefixed("tribe-joined", Map.of("tribe", args[1])) : messages.prefixed("tribe-condition-failed", Map.of("reason", "해당 부족의 초대가 없거나 초대가 만료되었습니다. 이미 다른 부족에 가입되어 있어도 가입할 수 없습니다.")))));
                 }
                 case "decline" -> sender.sendMessage("초대를 거절했습니다.");
-                case "leave" -> sender.sendMessage("부족 탈퇴는 아직 자동 처리되지 않습니다. 부족장은 소유권을 이전한 뒤 탈퇴해야 합니다.");
+                case "leave" -> tribes.leave(player.getUniqueId()).thenAccept(result -> Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage(leaveMessage(result))));
+                case "disband" -> tribes.disband(player.getUniqueId()).thenAccept(result -> Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage(disbandMessage(result))));
                 case "kick", "promote", "demote", "transfer" -> sender.sendMessage("부족 관리 명령은 아직 복구/관리 절차로 처리됩니다. 관리자 권한 raidcore.tribe.manage와 대상 기록을 확인하세요.");
                 case "info" -> info(player, args.length > 1 ? args[1] : null);
                 case "members" -> members(player, args.length > 1 ? args[1] : null);
@@ -106,7 +107,7 @@ public final class TribeCommand implements TabExecutor {
                 case "core" -> sender.sendMessage("코어 명령어: /tribe core create, /tribe core info");
                 case "territory" -> sender.sendMessage("영토 정보는 청크 인덱스에 저장된 부족 코어 스냅샷을 기준으로 계산됩니다.");
                 case "admin" -> sender.sendMessage("관리자 복구는 /raidcore tribe 및 docs/ADMIN_RECOVERY.md 절차를 확인하세요.");
-                default -> usage(sender, "사용법: /tribe create|invite|accept|info|members|top|chat|sethome|home|tpa|summon|core|war");
+                default -> usage(sender, "사용법: /tribe create|invite|accept|leave|disband|info|members|top|chat|sethome|home|tpa|summon|core|war");
             }
             return true;
         } catch (RuntimeException e) {
@@ -266,6 +267,21 @@ public final class TribeCommand implements TabExecutor {
         };
     }
 
+    private net.kyori.adventure.text.Component leaveMessage(TribeService.LeaveResult result) {
+        return switch (result) {
+            case LEFT -> messages.prefixed("tribe-left", Map.of());
+            case DISBANDED -> messages.prefixed("tribe-disbanded", Map.of());
+            case OWNER_HAS_MEMBERS -> messages.prefixed("tribe-owner-leave-blocked", Map.of());
+            case NOT_IN_TRIBE -> messages.prefixed("tribe-condition-failed", Map.of("reason", "부족에 가입되어 있지 않습니다."));
+            case NOT_OWNER -> messages.prefixed("tribe-condition-failed", Map.of("reason", "부족장만 사용할 수 있습니다."));
+            case FAILED -> messages.prefixed("tribe-condition-failed", Map.of("reason", "DB 처리 중 오류가 발생했습니다. 콘솔 로그를 확인하세요."));
+        };
+    }
+
+    private net.kyori.adventure.text.Component disbandMessage(TribeService.LeaveResult result) {
+        return result == TribeService.LeaveResult.DISBANDED ? messages.prefixed("tribe-disbanded", Map.of()) : leaveMessage(result);
+    }
+
     private TribeMember ownMember(Player player) {
         return tribes.snapshot().member(player.getUniqueId()).orElse(null);
     }
@@ -278,7 +294,7 @@ public final class TribeCommand implements TabExecutor {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (command.getName().equalsIgnoreCase("tc")) return List.of();
-        if (args.length == 1) return filter(List.of("create", "invite", "accept", "decline", "leave", "kick", "promote", "demote", "transfer", "info", "members", "top", "contribution", "treasury", "deposit", "withdraw", "chat", "sethome", "home", "tpa", "summon", "relation", "war", "core", "territory", "admin"), args[0]);
+        if (args.length == 1) return filter(List.of("create", "invite", "accept", "decline", "leave", "disband", "kick", "promote", "demote", "transfer", "info", "members", "top", "contribution", "treasury", "deposit", "withdraw", "chat", "sethome", "home", "tpa", "summon", "relation", "war", "core", "territory", "admin"), args[0]);
         if (args.length == 2 && List.of("invite", "kick", "promote", "demote", "transfer", "tpa").contains(args[0].toLowerCase())) return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
         if (args.length == 2 && args[0].equalsIgnoreCase("war")) return filter(List.of("declare", "status"), args[1]);
         if (args.length == 2 && args[0].equalsIgnoreCase("core")) return filter(List.of("create", "info"), args[1]);

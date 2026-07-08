@@ -5,7 +5,9 @@ import com.example.raidsurvivalcore.combat.CombatLogManager;
 import com.example.raidsurvivalcore.combat.CombatManager;
 import com.example.raidsurvivalcore.command.RaidCoreCommand;
 import com.example.raidsurvivalcore.command.MoneyCommand;
+import com.example.raidsurvivalcore.command.ShopCommand;
 import com.example.raidsurvivalcore.command.TribeCommand;
+import com.example.raidsurvivalcore.command.TradeCommand;
 import com.example.raidsurvivalcore.chat.TribeChatState;
 import com.example.raidsurvivalcore.config.ConfigService;
 import com.example.raidsurvivalcore.config.MessageService;
@@ -15,11 +17,13 @@ import com.example.raidsurvivalcore.listener.CombatListener;
 import com.example.raidsurvivalcore.listener.HealingRestrictionListener;
 import com.example.raidsurvivalcore.listener.PlayerLifecycleListener;
 import com.example.raidsurvivalcore.listener.RestrictionListener;
+import com.example.raidsurvivalcore.listener.WorldRuleListener;
 import com.example.raidsurvivalcore.persistence.DatabaseManager;
 import com.example.raidsurvivalcore.persistence.PlayerDataRepository;
 import com.example.raidsurvivalcore.protection.NewPlayerProtectionManager;
 import com.example.raidsurvivalcore.protection.RespawnProtectionManager;
 import com.example.raidsurvivalcore.proximity.ProximityManager;
+import com.example.raidsurvivalcore.shop.ShopService;
 import com.example.raidsurvivalcore.spawn.RandomSpawnManager;
 import com.example.raidsurvivalcore.task.ActionBarTask;
 import com.example.raidsurvivalcore.economy.EconomyIncomeManager;
@@ -52,6 +56,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
     private BountyManager bounty;
     private EconomyService economy;
     private EconomyIncomeManager economyIncome;
+    private ShopService shop;
     private TribeService tribes;
     private TribeChatState tribeChat;
     private TerritoryService territory;
@@ -60,6 +65,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
     private HealingRestrictionListener healingListener;
     private RestrictionListener restrictionListener;
     private PlayerLifecycleListener lifecycleListener;
+    private WorldRuleListener worldRuleListener;
     private int cleanupTask = -1;
     private int autosaveTask = -1;
 
@@ -70,6 +76,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         ResourceInstaller.saveIfMissing(this, "territory.yml");
         ResourceInstaller.saveIfMissing(this, "siege.yml");
         ResourceInstaller.saveIfMissing(this, "economy.yml");
+        ResourceInstaller.saveIfMissing(this, "shop.yml");
         ResourceInstaller.saveIfMissing(this, "chat.yml");
         messages = new MessageService(this);
         messages.reload();
@@ -86,6 +93,8 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         playerData = new PlayerDataRepository(database, getLogger(), cfg.bounty().internalStartingTokens());
         economy = new EconomyService(database, getLogger(), loadEconomySettings());
         economyIncome = new EconomyIncomeManager(this, economy);
+        shop = new ShopService(this);
+        shop.reload();
         tribes = new TribeService(database, economy, getLogger(), 5000L);
         tribeChat = new TribeChatState();
         territory = new TerritoryService(database, getLogger());
@@ -97,7 +106,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         respawn = new RespawnProtectionManager(cfg);
         randomSpawn = new RandomSpawnManager(this, cfg, messages);
         deathLocation = new DeathLocationManager(playerData, messages, cfg);
-        bounty = new BountyManager(database, playerData, messages, getLogger(), cfg);
+        bounty = new BountyManager(database, economy, messages, getLogger(), cfg);
         proximity = new ProximityManager(this, cfg, combat, newbie, messages);
         proximity.setTribeService(tribes);
         randomSpawn.setTerritoryService(territory);
@@ -132,6 +141,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         deathLocation.reload(cfg);
         bounty.reload(cfg);
         economy.reload(loadEconomySettings());
+        shop.reload();
         proximity.reload(cfg);
         tracker.reload(cfg);
         tribes.reloadSnapshot();
@@ -139,6 +149,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         if (healingListener != null) healingListener.reload(cfg);
         if (restrictionListener != null) restrictionListener.reload(cfg);
         if (lifecycleListener != null) lifecycleListener.reload(cfg);
+        if (worldRuleListener != null) worldRuleListener.reload(cfg);
         registerEverything();
     }
 
@@ -157,10 +168,13 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         healingListener = new HealingRestrictionListener(this, combat, cfg);
         restrictionListener = new RestrictionListener(combat, messages, cfg);
         lifecycleListener = new PlayerLifecycleListener(this, newbie, respawn, combatLog, randomSpawn, cfg);
+        worldRuleListener = new WorldRuleListener(cfg);
+        worldRuleListener.applyAll();
         Bukkit.getPluginManager().registerEvents(new CombatListener(combat, proximity, newbie, respawn, messages, deathLocation, bounty, tribes), this);
         Bukkit.getPluginManager().registerEvents(healingListener, this);
         Bukkit.getPluginManager().registerEvents(restrictionListener, this);
         Bukkit.getPluginManager().registerEvents(lifecycleListener, this);
+        Bukkit.getPluginManager().registerEvents(worldRuleListener, this);
         Bukkit.getPluginManager().registerEvents(new TribeChatListener(tribes, tribeChat, getLogger()), this);
         Bukkit.getPluginManager().registerEvents(economyIncome, this);
 
@@ -174,11 +188,15 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         if (tribe != null) tribe.setExecutor(tribeCommand);
         PluginCommand tc = getCommand("tc");
         if (tc != null) tc.setExecutor(tribeCommand);
-        MoneyCommand moneyCommand = new MoneyCommand(economy, messages);
+        MoneyCommand moneyCommand = new MoneyCommand(this, economy, messages);
         PluginCommand money = getCommand("money");
         if (money != null) money.setExecutor(moneyCommand);
+        ShopCommand shopCommand = new ShopCommand(this, shop, economy);
         PluginCommand shop = getCommand("shop");
-        if (shop != null) shop.setExecutor(moneyCommand);
+        if (shop != null) shop.setExecutor(shopCommand);
+        TradeCommand tradeCommand = new TradeCommand(this, economy);
+        PluginCommand trade = getCommand("trade");
+        if (trade != null) trade.setExecutor(tradeCommand);
     }
 
     private void stopTasks() {

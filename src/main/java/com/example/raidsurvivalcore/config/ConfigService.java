@@ -1,7 +1,13 @@
 package com.example.raidsurvivalcore.config;
 
+import com.example.raidsurvivalcore.model.RegionBox;
 import java.time.Duration;
+import java.time.ZoneId;
+import java.time.zone.ZoneRulesException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -44,7 +50,8 @@ public final class ConfigService {
                 c.getBoolean("combat.enabled", true),
                 seconds(c.getLong("combat.tag-seconds", 20), 1, "combat tag"),
                 seconds(c.getLong("combat.last-attacker-memory-seconds", 12), 1, "last attacker memory"),
-                c.getBoolean("combat.actionbar", true)
+                c.getBoolean("combat.actionbar", true),
+                regionBoxes(c, "combat.safe-zones")
             ),
             new RaidCoreConfig.Healing(
                 clampMultiplier(c.getDouble("healing.natural-regeneration", 0.0), "natural"),
@@ -62,9 +69,11 @@ public final class ConfigService {
             randomSpawn(c),
             new RaidCoreConfig.Newbie(c.getBoolean("new-player-protection.enabled", true), Duration.ofMinutes(Math.max(1, c.getLong("new-player-protection.playtime-minutes", 30))), c.getBoolean("new-player-protection.disable-on-attack", true), c.getBoolean("new-player-protection.disable-on-nether", true)),
             new RaidCoreConfig.Respawn(c.getBoolean("respawn-protection.enabled", true), seconds(c.getLong("respawn-protection.seconds", 30), 0, "respawn protection"), c.getBoolean("respawn-protection.disable-on-attack", true), c.getBoolean("respawn-protection.block-chest-open", false), c.getBoolean("respawn-protection.block-item-pickup", false), c.getBoolean("respawn-protection.block-portal", false)),
-            new RaidCoreConfig.Death(c.getBoolean("death-location.enabled", true), c.getBoolean("death-location.recovery-compass", true), Math.max(1, c.getInt("death-location.item-despawn-minutes", 5))),
+            new RaidCoreConfig.Death(c.getBoolean("death-location.enabled", true), c.getBoolean("death-location.recovery-compass", true), Math.max(1, c.getInt("death-location.item-despawn-minutes", 5)), timeZone(c.getString("death-location.time-zone", "Asia/Seoul"))),
             new RaidCoreConfig.Bounty(c.getBoolean("bounty.enabled", true), Math.max(0, c.getLong("bounty.min-amount", 10)), Math.max(c.getLong("bounty.min-amount", 10), c.getLong("bounty.max-amount", 1000000)), c.getBoolean("bounty.use-vault-if-present", true), Math.max(0, c.getLong("bounty.internal-starting-tokens", 0))),
             new RaidCoreConfig.AntiFarming(c.getBoolean("anti-farming.enabled", true), Duration.ofMinutes(Math.max(1, c.getLong("anti-farming.window-minutes", 30))), Math.max(0, c.getInt("anti-farming.full-reward-kills", 2)), Math.max(1, c.getInt("anti-farming.reduced-from-kill", 3)), Math.max(1, c.getInt("anti-farming.no-reward-from-kill", 5)), clampMultiplier(c.getDouble("anti-farming.reduced-multiplier", 0.5), "reduced reward")),
+            new RaidCoreConfig.EnderChestLoot(c.getBoolean("ender-chest-loot.enabled", true), c.getBoolean("ender-chest-loot.pvp-only", true), clampMultiplier(c.getDouble("ender-chest-loot.drop-chance", 0.25), "ender chest drop chance"), Math.max(1, c.getInt("ender-chest-loot.max-stacks", 2)), clampMultiplier(c.getDouble("ender-chest-loot.stack-fraction", 0.5), "ender chest stack fraction")),
+            new RaidCoreConfig.Advancements(c.getBoolean("advancements.disable-announcements", true)),
             new RaidCoreConfig.Tracker(c.getBoolean("tracker.enabled", true), seconds(c.getLong("tracker.update-seconds", 30), 1, "tracker update"), positive(c.getDouble("tracker.min-distance", 500), 500, "tracker min"), positive(c.getDouble("tracker.max-distance", 5000), 5000, "tracker max"), c.getBoolean("tracker.consume-token", false), Math.max(0, c.getLong("tracker.token-cost", 1)), c.getString("tracker.compass-name", "<gold>추적 나침반</gold>")),
             new RaidCoreConfig.Database(c.getString("database.file", "raidcore.db"), seconds(c.getLong("database.autosave-seconds", 120), 10, "autosave")),
             new RaidCoreConfig.Performance(Math.max(1, c.getLong("performance.actionbar-interval-ticks", 20)), seconds(c.getLong("performance.cleanup-interval-seconds", 5), 1, "cleanup")),
@@ -128,5 +137,48 @@ public final class ConfigService {
 
     private Set<String> lowerSet(java.util.List<String> values) {
         return values.stream().map(v -> v.toLowerCase(Locale.ROOT)).collect(Collectors.toUnmodifiableSet());
+    }
+
+    private String timeZone(String raw) {
+        try {
+            return ZoneId.of(raw == null || raw.isBlank() ? "Asia/Seoul" : raw).getId();
+        } catch (ZoneRulesException e) {
+            logger.warning("death-location.time-zone is invalid; using Asia/Seoul");
+            return "Asia/Seoul";
+        }
+    }
+
+    private List<RegionBox> regionBoxes(FileConfiguration c, String path) {
+        List<RegionBox> boxes = new ArrayList<>();
+        for (Map<?, ?> entry : c.getMapList(path)) {
+            Object worldValue = entry.get("world");
+            String world = String.valueOf(worldValue == null ? "" : worldValue).strip();
+            if (world.isBlank()) {
+                logger.warning(path + " entry is missing world; skipping");
+                continue;
+            }
+            boxes.add(new RegionBox(
+                world,
+                number(entry, "min-x", number(entry, "x1", 0.0)),
+                number(entry, "min-y", number(entry, "y1", -64.0)),
+                number(entry, "min-z", number(entry, "z1", 0.0)),
+                number(entry, "max-x", number(entry, "x2", 0.0)),
+                number(entry, "max-y", number(entry, "y2", 320.0)),
+                number(entry, "max-z", number(entry, "z2", 0.0))
+            ));
+        }
+        return List.copyOf(boxes);
+    }
+
+    private double number(Map<?, ?> entry, String key, double fallback) {
+        Object value = entry.get(key);
+        if (value instanceof Number number) return number.doubleValue();
+        if (value instanceof String string) {
+            try {
+                return Double.parseDouble(string);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return fallback;
     }
 }

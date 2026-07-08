@@ -1,0 +1,44 @@
+enabled: true
+items:
+  bread:
+    material: BREAD
+    amount: 8
+    buy-price: 40
+    sell-price: -1
+    max-per-transaction: 16
+  cooked_beef:
+    material: COOKED_BEEF
+    amount: 8
+    buy-price: 120
+    sell-price: -1
+    max-per-transaction: 16
+  iron_ingot:
+    material: IRON_INGOT
+    amount: 1
+    buy-price: 300
+    sell-price: 120
+    max-per-transaction: 64
+  gold_ingot:
+    material: GOLD_INGOT
+    amount: 1
+    buy-price: 450
+    sell-price: 180
+    max-per-transaction: 64
+  diamond:
+    material: DIAMOND
+    amount: 1
+    buy-price: 3000
+    sell-price: 1200
+    max-per-transaction: 32
+  ender_pearl:
+    material: ENDER_PEARL
+    amount: 4
+    buy-price: 500
+    sell-price: -1
+    max-per-transaction: 16
+  potion:
+    material: POTION
+    amount: 1
+    buy-price: 350
+    sell-price: -1
+    max-per-transaction: 8

@@ -66,6 +66,11 @@ public final class DatabaseManager {
             if (version < 3) {
                 migrateV3(s);
                 s.executeUpdate("UPDATE schema_version SET version = 3");
+                version = 3;
+            }
+            if (version < 4) {
+                migrateV4(s);
+                s.executeUpdate("UPDATE schema_version SET version = 4");
             }
             c.commit();
         } catch (SQLException e) {
@@ -109,6 +114,11 @@ public final class DatabaseManager {
 
     private void migrateV3(Statement s) throws SQLException {
         s.executeUpdate("CREATE TABLE IF NOT EXISTS tribe_homes (tribe_id INTEGER PRIMARY KEY REFERENCES tribes(id) ON DELETE CASCADE, world_uuid TEXT NOT NULL, x REAL NOT NULL, y REAL NOT NULL, z REAL NOT NULL, yaw REAL NOT NULL, pitch REAL NOT NULL, updated_by_uuid TEXT NOT NULL, updated_at INTEGER NOT NULL)");
+    }
+
+    private void migrateV4(Statement s) throws SQLException {
+        s.executeUpdate("CREATE TABLE IF NOT EXISTS bounty_items (id INTEGER PRIMARY KEY AUTOINCREMENT, target_uuid TEXT NOT NULL, item_blob TEXT NOT NULL, created_at INTEGER NOT NULL)");
+        s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_bounty_items_target ON bounty_items(target_uuid)");
     }
 
     public void shutdown() {

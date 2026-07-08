@@ -8,8 +8,12 @@ import com.example.raidsurvivalcore.protection.NewPlayerProtectionManager;
 import com.example.raidsurvivalcore.protection.RespawnProtectionManager;
 import com.example.raidsurvivalcore.proximity.ProximityManager;
 import com.example.raidsurvivalcore.tribe.TribeService;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.UUID;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Firework;
@@ -23,6 +27,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.projectiles.ProjectileSource;
 
 public final class CombatListener implements Listener {
@@ -54,6 +60,11 @@ public final class CombatListener implements Listener {
         if (attacker.isEmpty()) return;
         Player damager = attacker.get();
         if (damager.equals(victim)) return;
+        if (inSafeZone(damager) || inSafeZone(victim)) {
+            event.setCancelled(true);
+            damager.sendMessage(messages.prefixed("combat-safe-zone", Map.of()));
+            return;
+        }
         if (tribes.snapshot().sameTribe(damager.getUniqueId(), victim.getUniqueId())) {
             event.setCancelled(true);
             return;
@@ -90,6 +101,7 @@ public final class CombatListener implements Listener {
         Player victim = event.getEntity();
         deathLocation.record(victim);
         UUID killer = victim.getKiller() != null ? victim.getKiller().getUniqueId() : combat.lastAttacker(victim.getUniqueId()).orElse(null);
+        dropEnderChestLoot(victim, killer);
         bounty.handleKill(killer, victim.getUniqueId());
         tribes.handlePvpDeath(killer, victim.getUniqueId(), newbie.protectedNow(victim));
         combat.clear(victim.getUniqueId());
@@ -109,5 +121,38 @@ public final class CombatListener implements Listener {
         if (source instanceof Player player) return Optional.of(player);
         if (source instanceof Tameable tameable && tameable.getOwner() instanceof Player owner) return Optional.of(owner);
         return Optional.empty();
+    }
+
+    private boolean inSafeZone(Player player) {
+        return combat.config().combat().safeZones().stream().anyMatch(zone -> zone.contains(player.getLocation()));
+    }
+
+    private void dropEnderChestLoot(Player victim, UUID killer) {
+        var rules = combat.config().enderChestLoot();
+        if (!rules.enabled()) return;
+        if (rules.pvpOnly() && killer == null) return;
+        if (ThreadLocalRandom.current().nextDouble() > rules.dropChance()) return;
+        Inventory enderChest = victim.getEnderChest();
+        List<Integer> slots = new ArrayList<>();
+        ItemStack[] contents = enderChest.getContents();
+        for (int i = 0; i < contents.length; i++) {
+            if (contents[i] != null && !contents[i].getType().isAir()) slots.add(i);
+        }
+        if (slots.isEmpty()) return;
+        Collections.shuffle(slots);
+        int dropped = 0;
+        for (int slot : slots) {
+            if (dropped >= rules.maxStacks()) break;
+            ItemStack current = contents[slot];
+            int amount = Math.max(1, (int) Math.ceil(current.getAmount() * rules.stackFraction()));
+            ItemStack drop = current.clone();
+            drop.setAmount(Math.min(amount, current.getAmount()));
+            current.setAmount(current.getAmount() - drop.getAmount());
+            contents[slot] = current.getAmount() <= 0 ? null : current;
+            victim.getWorld().dropItemNaturally(victim.getLocation(), drop);
+            dropped++;
+        }
+        enderChest.setContents(contents);
+        victim.sendMessage("PvP 사망으로 엔더상자 아이템 일부를 떨어뜨렸습니다.");
     }
 }

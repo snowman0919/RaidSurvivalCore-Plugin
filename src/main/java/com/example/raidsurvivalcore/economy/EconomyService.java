@@ -5,6 +5,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
@@ -34,6 +36,27 @@ public final class EconomyService {
 
     public CompletableFuture<Long> balance(UUID uuid) {
         return CompletableFuture.supplyAsync(() -> balanceSync(personalAccount(uuid)), database.executor());
+    }
+
+    public CompletableFuture<List<BalanceRow>> topBalances(int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<BalanceRow> rows = new ArrayList<>();
+            try (var c = database.connection(); PreparedStatement ps = c.prepareStatement("SELECT account_id, balance FROM currency_accounts WHERE account_type='PLAYER' AND account_id LIKE 'player:%' ORDER BY balance DESC, account_id ASC LIMIT ?")) {
+                ps.setInt(1, Math.max(1, limit));
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String accountId = rs.getString("account_id");
+                        try {
+                            rows.add(new BalanceRow(UUID.fromString(accountId.substring("player:".length())), rs.getLong("balance")));
+                        } catch (RuntimeException ignored) {
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                logger.warning("RaidSurvivalCore economy top balance read failed: " + e.getMessage());
+            }
+            return rows;
+        }, database.executor());
     }
 
     public CompletableFuture<Boolean> pay(UUID from, UUID to, long amount) {
@@ -154,5 +177,8 @@ public final class EconomyService {
             ps.setLong(8, Instant.now().toEpochMilli());
             ps.executeUpdate();
         }
+    }
+
+    public record BalanceRow(UUID playerUuid, long balance) {
     }
 }

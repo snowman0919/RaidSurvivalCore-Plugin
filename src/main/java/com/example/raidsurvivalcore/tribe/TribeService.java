@@ -2,7 +2,6 @@ package com.example.raidsurvivalcore.tribe;
 
 import com.example.raidsurvivalcore.economy.CurrencyReason;
 import com.example.raidsurvivalcore.economy.EconomyRules;
-import com.example.raidsurvivalcore.economy.EconomyRules;
 import com.example.raidsurvivalcore.economy.EconomyService;
 import com.example.raidsurvivalcore.persistence.DatabaseManager;
 import java.sql.PreparedStatement;
@@ -151,6 +150,68 @@ public final class TribeService {
                 return false;
             }
         }, database.executor()).whenComplete((r, e) -> loadSnapshotSync());
+    }
+
+    public CompletableFuture<LeaveResult> leave(UUID player) {
+        return CompletableFuture.supplyAsync(() -> leaveSync(player), database.executor()).whenComplete((r, e) -> loadSnapshotSync());
+    }
+
+    private LeaveResult leaveSync(UUID player) {
+        try (var c = database.connection()) {
+            c.setAutoCommit(false);
+            TribeMemberRecord member = memberRecord(c, player);
+            if (member == null) {
+                c.rollback();
+                return LeaveResult.NOT_IN_TRIBE;
+            }
+            int memberCount = memberCount(c, member.tribeId());
+            if (member.role() == TribeRole.OWNER && memberCount > 1) {
+                c.rollback();
+                return LeaveResult.OWNER_HAS_MEMBERS;
+            }
+            if (memberCount <= 1) {
+                audit(c, member.tribeId(), player, null, "TRIBE_DISBAND", "last member left");
+                deleteTribe(c, member.tribeId());
+                c.commit();
+                return LeaveResult.DISBANDED;
+            }
+            try (PreparedStatement ps = c.prepareStatement("DELETE FROM tribe_members WHERE player_uuid=?")) {
+                ps.setString(1, player.toString());
+                ps.executeUpdate();
+            }
+            audit(c, member.tribeId(), player, player, "TRIBE_LEAVE", "voluntary leave");
+            c.commit();
+            return LeaveResult.LEFT;
+        } catch (SQLException e) {
+            logger.warning("RaidSurvivalCore tribe leave failed: " + e.getMessage());
+            return LeaveResult.FAILED;
+        }
+    }
+
+    public CompletableFuture<LeaveResult> disband(UUID owner) {
+        return CompletableFuture.supplyAsync(() -> disbandSync(owner), database.executor()).whenComplete((r, e) -> loadSnapshotSync());
+    }
+
+    private LeaveResult disbandSync(UUID owner) {
+        try (var c = database.connection()) {
+            c.setAutoCommit(false);
+            TribeMemberRecord member = memberRecord(c, owner);
+            if (member == null) {
+                c.rollback();
+                return LeaveResult.NOT_IN_TRIBE;
+            }
+            if (member.role() != TribeRole.OWNER) {
+                c.rollback();
+                return LeaveResult.NOT_OWNER;
+            }
+            audit(c, member.tribeId(), owner, null, "TRIBE_DISBAND", "owner command");
+            deleteTribe(c, member.tribeId());
+            c.commit();
+            return LeaveResult.DISBANDED;
+        } catch (SQLException e) {
+            logger.warning("RaidSurvivalCore tribe disband failed: " + e.getMessage());
+            return LeaveResult.FAILED;
+        }
     }
 
     public CompletableFuture<Boolean> addPrisoner(long tribeId, UUID player, String reason) {
@@ -426,6 +487,49 @@ public final class TribeService {
             ps.setLong(6, Instant.now().toEpochMilli());
             ps.executeUpdate();
         }
+    }
+
+    private TribeMemberRecord memberRecord(java.sql.Connection c, UUID player) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("SELECT tribe_id, role FROM tribe_members WHERE player_uuid=?")) {
+            ps.setString(1, player.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+                return new TribeMemberRecord(rs.getLong("tribe_id"), TribeRole.valueOf(rs.getString("role")));
+            }
+        }
+    }
+
+    private int memberCount(java.sql.Connection c, long tribeId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM tribe_members WHERE tribe_id=?")) {
+            ps.setLong(1, tribeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    private void deleteTribe(java.sql.Connection c, long tribeId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("DELETE FROM tribe_wars WHERE attacker_tribe_id=? OR defender_tribe_id=?")) {
+            ps.setLong(1, tribeId);
+            ps.setLong(2, tribeId);
+            ps.executeUpdate();
+        }
+        try (PreparedStatement ps = c.prepareStatement("DELETE FROM tribes WHERE id=?")) {
+            ps.setLong(1, tribeId);
+            ps.executeUpdate();
+        }
+    }
+
+    private record TribeMemberRecord(long tribeId, TribeRole role) {
+    }
+
+    public enum LeaveResult {
+        LEFT,
+        DISBANDED,
+        OWNER_HAS_MEMBERS,
+        NOT_OWNER,
+        NOT_IN_TRIBE,
+        FAILED
     }
 
     public record CreateResult(boolean success, String reason, long tribeId) {

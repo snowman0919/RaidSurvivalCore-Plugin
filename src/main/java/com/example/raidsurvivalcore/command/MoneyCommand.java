@@ -5,32 +5,32 @@ import com.example.raidsurvivalcore.economy.EconomyService;
 import java.util.List;
 import java.util.Map;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MoneyCommand implements TabExecutor {
+    private final JavaPlugin plugin;
     private final EconomyService economy;
     private final MessageService messages;
 
-    public MoneyCommand(EconomyService economy, MessageService messages) {
+    public MoneyCommand(JavaPlugin plugin, EconomyService economy, MessageService messages) {
+        this.plugin = plugin;
         this.economy = economy;
         this.messages = messages;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (command.getName().equalsIgnoreCase("shop")) {
-            sender.sendMessage("상점 기능은 economy.yml 설정과 서버 상점 연동 API를 사용합니다. 현재 빌드는 경제 저장소와 거래 API를 제공합니다.");
-            return true;
-        }
         if (!(sender instanceof Player player)) {
             sender.sendMessage("이 명령어는 플레이어만 사용할 수 있습니다.");
             return true;
         }
         if (args.length == 0) {
-            economy.balance(player.getUniqueId()).thenAccept(balance -> player.sendMessage(messages.prefixed("money-balance", Map.of("amount", String.valueOf(balance)))));
+            economy.balance(player.getUniqueId()).thenAccept(balance -> Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage(messages.prefixed("money-balance", Map.of("amount", String.valueOf(balance))))));
             return true;
         }
         if (args[0].equalsIgnoreCase("pay") && args.length >= 3) {
@@ -41,7 +41,7 @@ public final class MoneyCommand implements TabExecutor {
                 player.sendMessage(messages.prefixed("economy-failed", Map.of("reason", "대상 플레이어를 찾을 수 없거나 금액이 올바르지 않습니다.")));
                 return true;
             }
-            economy.pay(player.getUniqueId(), target.getUniqueId(), amount).thenAccept(ok -> Bukkit.getScheduler().runTask(Bukkit.getPluginManager().getPlugin("RaidSurvivalCore"), () -> {
+            economy.pay(player.getUniqueId(), target.getUniqueId(), amount).thenAccept(ok -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (ok) {
                     player.sendMessage(messages.prefixed("money-paid", Map.of("target", target.getName(), "amount", String.valueOf(amount))));
                     target.sendMessage(messages.prefixed("money-received", Map.of("sender", player.getName(), "amount", String.valueOf(amount))));
@@ -52,7 +52,20 @@ public final class MoneyCommand implements TabExecutor {
             return true;
         }
         if (args[0].equalsIgnoreCase("top")) {
-            sender.sendMessage("잔액 순위는 개인 잔액 노출 위험이 있어 게임 내 공개 명령으로 제공하지 않습니다. 관리자 DB 도구에서 currency_accounts를 조회하세요.");
+            economy.topBalances(10).thenAccept(rows -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (rows.isEmpty()) {
+                    sender.sendMessage("잔액 순위가 비어 있습니다.");
+                    return;
+                }
+                StringBuilder out = new StringBuilder("<gold>Crown 순위</gold>");
+                int rank = 1;
+                for (EconomyService.BalanceRow row : rows) {
+                    OfflinePlayer offline = Bukkit.getOfflinePlayer(row.playerUuid());
+                    String name = offline.getName() == null ? row.playerUuid().toString() : offline.getName();
+                    out.append('\n').append(rank++).append(". ").append(name).append(": ").append(row.balance()).append(" Crown");
+                }
+                sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(out.toString()));
+            }));
             return true;
         }
         sender.sendMessage("사용법: /money 또는 /money pay <플레이어> <금액>");

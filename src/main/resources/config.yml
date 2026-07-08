@@ -20,6 +20,7 @@ combat:
   tag-seconds: 20
   last-attacker-memory-seconds: 12
   actionbar: true
+  safe-zones: []
 healing:
   natural-regeneration: 0.0
   saturation-regeneration: 0.0
@@ -72,6 +73,7 @@ death-location:
   enabled: true
   recovery-compass: true
   item-despawn-minutes: 5
+  time-zone: Asia/Seoul
 bounty:
   enabled: true
   min-amount: 10
@@ -85,6 +87,14 @@ anti-farming:
   reduced-from-kill: 3
   no-reward-from-kill: 5
   reduced-multiplier: 0.5
+ender-chest-loot:
+  enabled: true
+  pvp-only: true
+  drop-chance: 0.25
+  max-stacks: 2
+  stack-fraction: 0.5
+advancements:
+  disable-announcements: true
 tracker:
   enabled: true
   update-seconds: 30

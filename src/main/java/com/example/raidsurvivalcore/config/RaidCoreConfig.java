@@ -1,5 +1,6 @@
 package com.example.raidsurvivalcore.config;
 
+import com.example.raidsurvivalcore.model.RegionBox;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
@@ -15,6 +16,8 @@ public record RaidCoreConfig(
     Death death,
     Bounty bounty,
     AntiFarming antiFarming,
+    EnderChestLoot enderChestLoot,
+    Advancements advancements,
     Tracker tracker,
     Database database,
     Performance performance,
@@ -25,7 +28,7 @@ public record RaidCoreConfig(
                             long scanTicks, Duration attackExemption, Duration resetAfterSeparated, Set<String> excludedWorlds) {
     }
 
-    public record Combat(boolean enabled, Duration tagDuration, Duration lastAttackerMemory, boolean actionbar) {
+    public record Combat(boolean enabled, Duration tagDuration, Duration lastAttackerMemory, boolean actionbar, List<RegionBox> safeZones) {
     }
 
     public record Healing(double natural, double saturation, double regeneration, double instantHealth, double goldenApple,
@@ -47,13 +50,19 @@ public record RaidCoreConfig(
     public record Respawn(boolean enabled, Duration duration, boolean disableOnAttack, boolean blockChest, boolean blockPickup, boolean blockPortal) {
     }
 
-    public record Death(boolean enabled, boolean recoveryCompass, int itemDespawnMinutes) {
+    public record Death(boolean enabled, boolean recoveryCompass, int itemDespawnMinutes, String timeZone) {
     }
 
     public record Bounty(boolean enabled, long minAmount, long maxAmount, boolean useVault, long internalStartingTokens) {
     }
 
     public record AntiFarming(boolean enabled, Duration window, int fullRewardKills, int reducedFromKill, int noRewardFromKill, double reducedMultiplier) {
+    }
+
+    public record EnderChestLoot(boolean enabled, boolean pvpOnly, double dropChance, int maxStacks, double stackFraction) {
+    }
+
+    public record Advancements(boolean disableAnnouncements) {
     }
 
     public record Tracker(boolean enabled, Duration updateInterval, double minDistance, double maxDistance, boolean consumeToken, long tokenCost,

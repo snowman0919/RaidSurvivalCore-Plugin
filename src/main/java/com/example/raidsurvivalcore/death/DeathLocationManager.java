@@ -16,6 +16,7 @@ import org.bukkit.inventory.meta.CompassMeta;
 public final class DeathLocationManager {
     private final PlayerDataRepository repository;
     private final MessageService messages;
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z");
     private RaidCoreConfig config;
 
     public DeathLocationManager(PlayerDataRepository repository, MessageService messages, RaidCoreConfig config) {
@@ -38,7 +39,7 @@ public final class DeathLocationManager {
             "x", String.valueOf(l.getBlockX()),
             "y", String.valueOf(l.getBlockY()),
             "z", String.valueOf(l.getBlockZ()),
-            "time", DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.systemDefault()).format(now),
+            "time", formatter.withZone(ZoneId.of(config.death().timeZone())).format(now),
             "despawn", String.valueOf(config.death().itemDespawnMinutes())
         )));
         if (config.death().recoveryCompass()) updateCompass(player, l);

@@ -14,7 +14,7 @@ commands:
     permission: raidcore.admin
   bounty:
     description: Bounty commands.
-    usage: /bounty <set|list|top|info>
+    usage: /bounty <set|item|list|top|info>
   tribe:
     description: Tribe commands.
     usage: /tribe
@@ -28,6 +28,9 @@ commands:
   shop:
     description: Server shop command.
     usage: /shop
+  trade:
+    description: Direct player trade commands.
+    usage: /trade
 permissions:
   raidcore.admin:
     description: Grants all RaidSurvivalCore administrative permissions.
