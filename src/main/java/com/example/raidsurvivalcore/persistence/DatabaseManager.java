@@ -71,6 +71,11 @@ public final class DatabaseManager {
             if (version < 4) {
                 migrateV4(s);
                 s.executeUpdate("UPDATE schema_version SET version = 4");
+                version = 4;
+            }
+            if (version < 5) {
+                migrateV5(s);
+                s.executeUpdate("UPDATE schema_version SET version = 5");
             }
             c.commit();
         } catch (SQLException e) {
@@ -119,6 +124,12 @@ public final class DatabaseManager {
     private void migrateV4(Statement s) throws SQLException {
         s.executeUpdate("CREATE TABLE IF NOT EXISTS bounty_items (id INTEGER PRIMARY KEY AUTOINCREMENT, target_uuid TEXT NOT NULL, item_blob TEXT NOT NULL, created_at INTEGER NOT NULL)");
         s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_bounty_items_target ON bounty_items(target_uuid)");
+    }
+
+    private void migrateV5(Statement s) throws SQLException {
+        s.executeUpdate("CREATE TABLE IF NOT EXISTS auction_listings (id INTEGER PRIMARY KEY AUTOINCREMENT, seller_uuid TEXT NOT NULL, item_blob TEXT NOT NULL, price INTEGER NOT NULL CHECK(price > 0), status TEXT NOT NULL DEFAULT 'ACTIVE', created_at INTEGER NOT NULL, buyer_uuid TEXT, sold_at INTEGER)");
+        s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_auction_listings_status ON auction_listings(status, id)");
+        s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_auction_listings_seller ON auction_listings(seller_uuid, status)");
     }
 
     public void shutdown() {

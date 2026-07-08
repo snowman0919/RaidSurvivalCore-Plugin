@@ -31,6 +31,12 @@ commands:
   trade:
     description: Direct player trade commands.
     usage: /trade
+  auction:
+    description: Auction house commands.
+    usage: /auction
+  ah:
+    description: Auction house shortcut.
+    usage: /ah
 permissions:
   raidcore.admin:
     description: Grants all RaidSurvivalCore administrative permissions.

@@ -38,7 +38,8 @@ public final class ShopCommand implements TabExecutor {
         if (args[0].equalsIgnoreCase("info") && args.length >= 2) return info(player, args[1]);
         if (args[0].equalsIgnoreCase("buy") && args.length >= 2) return buy(player, args[1], args.length >= 3 ? args[2] : "1");
         if (args[0].equalsIgnoreCase("sell") && args.length >= 2) return sell(player, args[1], args.length >= 3 ? args[2] : "1");
-        sender.sendMessage("사용법: /shop list | /shop buy <품목> [횟수] | /shop sell <품목> [횟수] | /shop info <품목>");
+        if (args[0].equalsIgnoreCase("sellhand")) return sellHand(player, args.length >= 2 ? args[1] : "1");
+        sender.sendMessage("사용법: /shop list | /shop buy <품목> [횟수] | /shop sell <품목> [횟수] | /shop sellhand [횟수] | /shop info <품목>");
         return true;
     }
 
@@ -115,6 +116,20 @@ public final class ShopCommand implements TabExecutor {
         return true;
     }
 
+    private boolean sellHand(Player player, String rawCount) {
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (hand.getType().isAir()) {
+            player.sendMessage("판매할 아이템을 손에 드세요.");
+            return true;
+        }
+        ShopEntry entry = shop.sellableByMaterial(hand.getType());
+        if (entry == null) {
+            player.sendMessage("손에 든 아이템은 상점에 판매할 수 없습니다.");
+            return true;
+        }
+        return sell(player, entry.id(), rawCount);
+    }
+
     private Integer parseCount(Player player, String raw, ShopEntry entry) {
         if (entry == null) {
             player.sendMessage("상점 품목을 찾을 수 없습니다.");
@@ -170,7 +185,7 @@ public final class ShopCommand implements TabExecutor {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return filter(List.of("list", "info", "buy", "sell"), args[0]);
+        if (args.length == 1) return filter(List.of("list", "info", "buy", "sell", "sellhand"), args[0]);
         if (args.length == 2 && List.of("info", "buy", "sell").contains(args[0].toLowerCase())) return filter(shop.entries().stream().map(ShopEntry::id).toList(), args[1]);
         return List.of();
     }

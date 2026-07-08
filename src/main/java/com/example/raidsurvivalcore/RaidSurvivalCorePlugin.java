@@ -3,8 +3,12 @@ package com.example.raidsurvivalcore;
 import com.example.raidsurvivalcore.bounty.BountyManager;
 import com.example.raidsurvivalcore.api.RaidCoreEconomyApi;
 import com.example.raidsurvivalcore.api.RaidCoreEconomyApiImpl;
+import com.example.raidsurvivalcore.api.RaidCorePlayerInfoApi;
+import com.example.raidsurvivalcore.api.RaidCorePlayerInfoApiImpl;
+import com.example.raidsurvivalcore.auction.AuctionService;
 import com.example.raidsurvivalcore.combat.CombatLogManager;
 import com.example.raidsurvivalcore.combat.CombatManager;
+import com.example.raidsurvivalcore.command.AuctionCommand;
 import com.example.raidsurvivalcore.command.RaidCoreCommand;
 import com.example.raidsurvivalcore.command.MoneyCommand;
 import com.example.raidsurvivalcore.command.ShopCommand;
@@ -60,6 +64,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
     private EconomyService economy;
     private EconomyIncomeManager economyIncome;
     private ShopService shop;
+    private AuctionService auctions;
     private TribeService tribes;
     private TribeChatState tribeChat;
     private TerritoryService territory;
@@ -95,16 +100,18 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         database.start(cfg.database().file());
         playerData = new PlayerDataRepository(database, getLogger(), cfg.bounty().internalStartingTokens());
         economy = new EconomyService(database, getLogger(), loadEconomySettings());
-        getServer().getServicesManager().register(RaidCoreEconomyApi.class, new RaidCoreEconomyApiImpl(economy), this, ServicePriority.Normal);
         economyIncome = new EconomyIncomeManager(this, economy);
         shop = new ShopService(this);
         shop.reload();
+        auctions = new AuctionService(database, economy, getLogger());
         tribes = new TribeService(database, economy, getLogger(), 5000L);
         tribeChat = new TribeChatState();
         territory = new TerritoryService(database, getLogger());
         tribes.reloadSnapshot();
         territory.reloadSnapshot();
         combat = new CombatManager(cfg, messages);
+        getServer().getServicesManager().register(RaidCoreEconomyApi.class, new RaidCoreEconomyApiImpl(economy), this, ServicePriority.Normal);
+        getServer().getServicesManager().register(RaidCorePlayerInfoApi.class, new RaidCorePlayerInfoApiImpl(economy, tribes, combat), this, ServicePriority.Normal);
         combatLog = new CombatLogManager(this, combat, cfg);
         newbie = new NewPlayerProtectionManager(playerData, cfg);
         respawn = new RespawnProtectionManager(cfg);
@@ -202,6 +209,11 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         TradeCommand tradeCommand = new TradeCommand(this, economy);
         PluginCommand trade = getCommand("trade");
         if (trade != null) trade.setExecutor(tradeCommand);
+        AuctionCommand auctionCommand = new AuctionCommand(this, auctions);
+        PluginCommand auction = getCommand("auction");
+        if (auction != null) auction.setExecutor(auctionCommand);
+        PluginCommand ah = getCommand("ah");
+        if (ah != null) ah.setExecutor(auctionCommand);
     }
 
     private void stopTasks() {

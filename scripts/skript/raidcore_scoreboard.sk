@@ -1,0 +1,42 @@
+import:
+	org.bukkit.Bukkit
+	org.bukkit.scoreboard.DisplaySlot
+	com.example.raidsurvivalcore.api.RaidCorePlayerInfoApi
+
+options:
+	refresh: 5 seconds
+
+function raidcore_update_board(p: player):
+	set {_api} to Bukkit.getServicesManager().load(RaidCorePlayerInfoApi.class)
+	if {_api} is not set:
+		stop
+	set {_info} to {_api}.info({_p}.getUniqueId()).join()
+	set {_manager} to Bukkit.getScoreboardManager()
+	set {_board} to {_manager}.getNewScoreboard()
+	set {_objective} to {_board}.registerNewObjective("raidcore", "dummy", "RaidCore")
+	{_objective}.setDisplaySlot(DisplaySlot.SIDEBAR)
+	set {_s} to {_objective}.getScore("§6Crown §f%{_info}.balance()%")
+	{_s}.setScore(6)
+	set {_s} to {_objective}.getScore("§a부족 §f%{_info}.tribeName()%")
+	{_s}.setScore(5)
+	set {_s} to {_objective}.getScore("§2태그 §f%{_info}.tribeTag()%")
+	{_s}.setScore(4)
+	set {_s} to {_objective}.getScore("§b직책 §f%{_info}.tribeRole()%")
+	{_s}.setScore(3)
+	if {_info}.combatTagged() is true:
+		set {_s} to {_objective}.getScore("§c전투 §f%{_info}.combatSeconds()%초")
+		{_s}.setScore(2)
+	else:
+		set {_s} to {_objective}.getScore("§7전투 아님")
+		{_s}.setScore(2)
+	set {_s} to {_objective}.getScore("§8RaidSurvivalCore")
+	{_s}.setScore(1)
+	{_p}.setScoreboard({_board})
+
+every {@refresh}:
+	loop all players:
+		raidcore_update_board(loop-player)
+
+on join:
+	wait 2 seconds
+	raidcore_update_board(player)

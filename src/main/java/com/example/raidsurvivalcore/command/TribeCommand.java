@@ -12,6 +12,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
@@ -58,7 +62,16 @@ public final class TribeCommand implements TabExecutor {
                     if (args.length < 2) return usage(sender, "사용법: /tribe invite <플레이어>");
                     Player target = Bukkit.getPlayer(args[1]);
                     if (target == null) return usage(sender, "초대할 플레이어를 찾을 수 없습니다. 대상은 온라인이어야 합니다.");
-                    tribes.invite(player.getUniqueId(), target.getUniqueId()).thenAccept(ok -> player.sendMessage(ok ? messages.prefixed("tribe-invite-sent", Map.of("target", target.getName())) : messages.prefixed("tribe-condition-failed", Map.of("reason", "초대에 실패했습니다. 본인이 부족 간부 이상인지, 부족에 가입되어 있는지 확인하세요."))));
+                    tribes.invite(player.getUniqueId(), target.getUniqueId()).thenAccept(ok -> Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (!ok) {
+                            player.sendMessage(messages.prefixed("tribe-condition-failed", Map.of("reason", "초대에 실패했습니다. 본인이 부족 간부 이상인지, 부족에 가입되어 있는지 확인하세요.")));
+                            return;
+                        }
+                        player.sendMessage(messages.prefixed("tribe-invite-sent", Map.of("target", target.getName())));
+                        tribes.snapshot().member(player.getUniqueId())
+                            .flatMap(member -> tribes.snapshot().tribe(member.tribeId()))
+                            .ifPresent(tribe -> sendInviteMessage(player, target, tribe.name()));
+                    }));
                 }
                 case "accept" -> {
                     if (args.length < 2) return usage(sender, "사용법: /tribe accept <부족이름>");
@@ -91,11 +104,11 @@ public final class TribeCommand implements TabExecutor {
                 }
                 case "sethome" -> setHome(player);
                 case "home" -> home(player);
-                case "tpa" -> {
-                    if (args.length < 2) return usage(sender, "사용법: /tribe tpa <부족원>");
+                case "tpa", "tp" -> {
+                    if (args.length < 2) return usage(sender, "사용법: /tribe tp <부족원>");
                     tpa(player, args[1]);
                 }
-                case "summon" -> summon(player);
+                case "summon", "tpall" -> summon(player);
                 case "relation" -> sender.sendMessage("동맹 또는 전쟁 관계가 없으면 기본 관계는 중립입니다.");
                 case "war" -> {
                     if (args.length >= 3 && args[1].equalsIgnoreCase("declare")) {
@@ -107,7 +120,7 @@ public final class TribeCommand implements TabExecutor {
                 case "core" -> sender.sendMessage("코어 명령어: /tribe core create, /tribe core info");
                 case "territory" -> sender.sendMessage("영토 정보는 청크 인덱스에 저장된 부족 코어 스냅샷을 기준으로 계산됩니다.");
                 case "admin" -> sender.sendMessage("관리자 복구는 /raidcore tribe 및 docs/ADMIN_RECOVERY.md 절차를 확인하세요.");
-                default -> usage(sender, "사용법: /tribe create|invite|accept|leave|disband|info|members|top|chat|sethome|home|tpa|summon|core|war");
+                default -> usage(sender, "사용법: /tribe create|invite|accept|leave|disband|info|members|top|chat|sethome|home|tp|tpall|core|war");
             }
             return true;
         } catch (RuntimeException e) {
@@ -115,6 +128,14 @@ public final class TribeCommand implements TabExecutor {
             sender.sendMessage("입력한 금액/플레이어/부족 이름을 확인한 뒤 다시 시도하세요.");
             return true;
         }
+    }
+
+    private void sendInviteMessage(Player inviter, Player target, String tribeName) {
+        target.sendMessage(Component.text(inviter.getName() + "님이 " + tribeName + " 부족에 초대했습니다. ", NamedTextColor.GREEN)
+            .append(Component.text("[수락]", NamedTextColor.AQUA)
+                .clickEvent(ClickEvent.runCommand("/tribe accept " + tribeName))
+                .hoverEvent(HoverEvent.showText(Component.text("/tribe accept " + tribeName))))
+            .append(Component.text(" 또는 /tribe accept " + tribeName, NamedTextColor.GRAY)));
     }
 
     private boolean tc(CommandSender sender, String[] args) {
@@ -210,9 +231,10 @@ public final class TribeCommand implements TabExecutor {
             player.sendMessage("대상이 전투 중이라 이동할 수 없습니다.");
             return true;
         }
-        player.teleport(target.getLocation());
-        player.sendMessage(target.getName() + "님에게 이동했습니다.");
-        target.sendMessage(player.getName() + "님이 부족 TPA로 당신에게 이동했습니다.");
+        player.teleportAsync(target.getLocation()).thenRun(() -> Bukkit.getScheduler().runTask(plugin, () -> {
+            player.sendMessage(target.getName() + "님에게 이동했습니다.");
+            target.sendMessage(player.getName() + "님이 부족 TP로 당신에게 이동했습니다.");
+        }));
         return true;
     }
 
@@ -234,7 +256,7 @@ public final class TribeCommand implements TabExecutor {
                 target.sendMessage("전투 중이라 부족장 소집에서 제외되었습니다.");
                 continue;
             }
-            target.teleport(destination);
+            target.teleportAsync(destination);
             target.sendMessage("부족장이 당신을 소집했습니다.");
             moved++;
         }
@@ -294,8 +316,8 @@ public final class TribeCommand implements TabExecutor {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (command.getName().equalsIgnoreCase("tc")) return List.of();
-        if (args.length == 1) return filter(List.of("create", "invite", "accept", "decline", "leave", "disband", "kick", "promote", "demote", "transfer", "info", "members", "top", "contribution", "treasury", "deposit", "withdraw", "chat", "sethome", "home", "tpa", "summon", "relation", "war", "core", "territory", "admin"), args[0]);
-        if (args.length == 2 && List.of("invite", "kick", "promote", "demote", "transfer", "tpa").contains(args[0].toLowerCase())) return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
+        if (args.length == 1) return filter(List.of("create", "invite", "accept", "decline", "leave", "disband", "kick", "promote", "demote", "transfer", "info", "members", "top", "contribution", "treasury", "deposit", "withdraw", "chat", "sethome", "home", "tp", "tpa", "tpall", "summon", "relation", "war", "core", "territory", "admin"), args[0]);
+        if (args.length == 2 && List.of("invite", "kick", "promote", "demote", "transfer", "tpa", "tp").contains(args[0].toLowerCase())) return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
         if (args.length == 2 && args[0].equalsIgnoreCase("war")) return filter(List.of("declare", "status"), args[1]);
         if (args.length == 2 && args[0].equalsIgnoreCase("core")) return filter(List.of("create", "info"), args[1]);
         return List.of();

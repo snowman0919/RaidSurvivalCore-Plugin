@@ -58,6 +58,13 @@ public final class ShopService {
         return entries.get(id.toLowerCase(Locale.ROOT));
     }
 
+    public ShopEntry sellableByMaterial(Material material) {
+        return entries.values().stream()
+            .filter(entry -> entry.material() == material && entry.canSell())
+            .findFirst()
+            .orElse(null);
+    }
+
     public List<ShopEntry> entries() {
         return entries.values().stream().sorted(Comparator.comparing(ShopEntry::id)).toList();
     }

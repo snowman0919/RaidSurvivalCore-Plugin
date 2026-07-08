@@ -12,6 +12,7 @@ These commands are intended for normal players:
 /shop info <item>
 /shop buy <item> [count]
 /shop sell <item> [count]
+/shop sellhand [count]
 /trade request <player>
 /trade accept <player>
 /trade item <player> <amount>
@@ -33,7 +34,19 @@ These commands are intended for normal players:
 /tribe deposit <amount>
 /tribe withdraw <amount>
 /tribe chat
+/tribe home
+/tribe sethome
+/tribe tp <member>
+/tribe tpa <member>
+/tribe tpall
+/tribe summon
 /tc <message>
+/auction list
+/auction info <id>
+/auction sell <price> [amount]
+/auction buy <id>
+/auction cancel <id>
+/ah list
 ```
 
 Recommended default permissions:

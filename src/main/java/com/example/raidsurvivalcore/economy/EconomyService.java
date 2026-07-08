@@ -161,7 +161,7 @@ public final class EconomyService {
 
     public long balanceSync(String accountId) {
         try (var c = database.connection()) {
-            ensureAccount(c, accountId, accountId.startsWith("tribe:") ? "TRIBE" : "PLAYER");
+            ensureAccount(c, accountId, accountType(accountId));
             return balanceSync(c, accountId);
         } catch (SQLException e) {
             logger.warning("RaidSurvivalCore economy balance read failed: " + e.getMessage());

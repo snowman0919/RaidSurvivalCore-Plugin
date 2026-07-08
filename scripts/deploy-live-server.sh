@@ -3,7 +3,7 @@ set -euo pipefail
 
 SERVER_PLUGINS="${1:-/home/mc_admin/mc-server/plugins}"
 PLUGIN_DIR="$SERVER_PLUGINS/RaidSurvivalCore"
-JAR_SOURCE="${2:-build/libs/RaidSurvivalCore-1.0.3.jar}"
+JAR_SOURCE="${2:-build/libs/RaidSurvivalCore-1.0.4.jar}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 if [[ ! -f "$JAR_SOURCE" ]]; then
@@ -17,10 +17,12 @@ find "$SERVER_PLUGINS" -maxdepth 1 -type f -name 'RaidSurvivalCore*.jar' -print0
   mv "$old" "$old.bak-$STAMP"
 done
 
-cp "$JAR_SOURCE" "$SERVER_PLUGINS/RaidSurvivalCore-1.0.3.jar"
-chmod 0644 "$SERVER_PLUGINS/RaidSurvivalCore-1.0.3.jar"
+JAR_NAME="$(basename "$JAR_SOURCE")"
+cp "$JAR_SOURCE" "$SERVER_PLUGINS/$JAR_NAME"
+chmod 0644 "$SERVER_PLUGINS/$JAR_NAME"
 
 install -m 0644 -D src/main/resources/shop.yml "$PLUGIN_DIR/shop.yml"
+install -m 0644 -D scripts/skript/raidcore_scoreboard.sk "$SERVER_PLUGINS/Skript/scripts/raidcore_scoreboard.sk"
 
 if [[ -f "$PLUGIN_DIR/economy.yml" ]]; then
   cp "$PLUGIN_DIR/economy.yml" "$PLUGIN_DIR/economy.yml.bak-$STAMP"
@@ -77,5 +79,5 @@ else
   install -m 0644 -D src/main/resources/config.yml "$PLUGIN_DIR/config.yml"
 fi
 
-echo "RaidSurvivalCore 1.0.3 deployed to $SERVER_PLUGINS"
+echo "$JAR_NAME deployed to $SERVER_PLUGINS"
 echo "Restart the server or run /raidcore reload after replacing the jar."
