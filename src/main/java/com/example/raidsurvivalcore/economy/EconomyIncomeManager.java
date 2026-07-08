@@ -24,7 +24,8 @@ public final class EconomyIncomeManager implements Listener {
 
     public void start() {
         stop();
-        taskId = Bukkit.getScheduler().runTaskTimer(plugin, this::payPlaytimeIncome, 20L * 60L, 20L * 60L).getTaskId();
+        long intervalTicks = Math.max(1L, economy.settings().playtimeIntervalMinutes()) * 60L * 20L;
+        taskId = Bukkit.getScheduler().runTaskTimer(plugin, this::payPlaytimeIncome, intervalTicks, intervalTicks).getTaskId();
     }
 
     public void stop() {
@@ -68,7 +69,7 @@ public final class EconomyIncomeManager implements Listener {
     private void payPlaytimeIncome() {
         EconomySettings settings = economy.settings();
         long hourly = random(settings.hourlyGeneralTargetMin(), settings.hourlyGeneralTargetMax());
-        long amount = hourly <= 0 ? 0 : Math.max(1, hourly / 60L);
+        long amount = hourly <= 0 ? 0 : Math.max(1, Math.round(hourly * (settings.playtimeIntervalMinutes() / 60.0)));
         if (amount <= 0) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
             economy.award(player.getUniqueId(), amount, CurrencyReason.PLAYTIME_REWARD).thenAccept(ok -> {

@@ -6,6 +6,7 @@ public record EconomySettings(
     long newAccountStartingBalance,
     long hourlyGeneralTargetMin,
     long hourlyGeneralTargetMax,
+    long playtimeIntervalMinutes,
     long mobLowRollMin,
     long mobLowRollMax,
     long advancementTaskReward,

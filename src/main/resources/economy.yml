@@ -6,13 +6,14 @@ currency:
   pay-tax-rate: 0.02
   new-account-starting-balance: 5000
 income:
-  hourly-general-target-min: 300
-  hourly-general-target-max: 800
-  mob-low-roll-min: 1
-  mob-low-roll-max: 5
-  advancement-task-reward: 100
-  advancement-goal-reward: 300
-  advancement-challenge-reward: 1000
+  hourly-general-target-min: 900
+  hourly-general-target-max: 1800
+  playtime-interval-minutes: 20
+  mob-low-roll-min: 10
+  mob-low-roll-max: 30
+  advancement-task-reward: 300
+  advancement-goal-reward: 1000
+  advancement-challenge-reward: 5000
 costs:
   tribe-creation: 5000
   core-creation: 15000

@@ -86,6 +86,36 @@ public final class EconomyService {
         }, database.executor());
     }
 
+    public CompletableFuture<Boolean> scriptAdjust(UUID actor, UUID target, long amount, String mode, String reason) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (amount < 0) return false;
+            try (var c = database.connection()) {
+                c.setAutoCommit(false);
+                String account = personalAccount(target);
+                ensureAccount(c, account, "PLAYER");
+                long current = balanceSync(c, account);
+                long next = switch (mode) {
+                    case "add" -> EconomyRules.checkedAdd(current, amount, settings.maxPersonalBalance());
+                    case "remove" -> EconomyRules.checkedSubtract(current, amount);
+                    case "set" -> amount;
+                    default -> throw new IllegalArgumentException("unknown mode");
+                };
+                if (next > settings.maxPersonalBalance()) throw new ArithmeticException("balance overflow");
+                setBalance(c, account, next);
+                insertTx(c, UUID.randomUUID().toString(), actor == null ? null : actor.toString(), null, account, amount, scriptReason(reason), 0);
+                c.commit();
+                return true;
+            } catch (Exception e) {
+                logger.warning("RaidSurvivalCore script economy adjustment failed: " + e.getMessage());
+                return false;
+            }
+        }, database.executor());
+    }
+
+    public CompletableFuture<Boolean> scriptTransfer(UUID from, UUID to, long amount, String reason) {
+        return CompletableFuture.supplyAsync(() -> transfer(personalAccount(from), personalAccount(to), from, amount, scriptReason(reason), 0.0), database.executor());
+    }
+
     public CompletableFuture<Boolean> award(UUID target, long amount, CurrencyReason reason) {
         return CompletableFuture.supplyAsync(() -> {
             if (amount <= 0) return false;
@@ -106,17 +136,21 @@ public final class EconomyService {
     }
 
     public boolean transfer(String source, String target, UUID actor, long amount, CurrencyReason reason, double taxRate) {
+        return transfer(source, target, actor, amount, reason.name(), taxRate);
+    }
+
+    public boolean transfer(String source, String target, UUID actor, long amount, String reason, double taxRate) {
         try (var c = database.connection()) {
             c.setAutoCommit(false);
-            ensureAccount(c, source, "PLAYER");
-            ensureAccount(c, target, "PLAYER");
+            ensureAccount(c, source, accountType(source));
+            ensureAccount(c, target, accountType(target));
             long sourceBalance = balanceSync(c, source);
             long tax = EconomyRules.tax(amount, taxRate);
             long debit = EconomyRules.checkedAdd(amount, tax, Long.MAX_VALUE);
             long targetBalance = balanceSync(c, target);
             setBalance(c, source, EconomyRules.checkedSubtract(sourceBalance, debit));
             setBalance(c, target, EconomyRules.checkedAdd(targetBalance, amount, settings.maxPersonalBalance()));
-            insertTx(c, UUID.randomUUID().toString(), actor == null ? null : actor.toString(), source, target, amount, reason.name(), tax);
+            insertTx(c, UUID.randomUUID().toString(), actor == null ? null : actor.toString(), source, target, amount, reason, tax);
             c.commit();
             return true;
         } catch (Exception e) {
@@ -180,5 +214,17 @@ public final class EconomyService {
     }
 
     public record BalanceRow(UUID playerUuid, long balance) {
+    }
+
+    private String accountType(String accountId) {
+        if (accountId != null && accountId.startsWith("player:")) return "PLAYER";
+        if (accountId != null && accountId.startsWith("tribe:")) return "TRIBE";
+        return "SYSTEM";
+    }
+
+    private String scriptReason(String reason) {
+        if (reason == null || reason.isBlank()) return "SKRIPT";
+        String cleaned = reason.replaceAll("[^A-Za-z0-9_:\\-./ ]", "").strip();
+        return cleaned.isBlank() ? "SKRIPT" : "SKRIPT:" + cleaned;
     }
 }

@@ -1,6 +1,7 @@
 package com.example.raidsurvivalcore.command;
 
 import com.example.raidsurvivalcore.config.MessageService;
+import com.example.raidsurvivalcore.economy.CurrencyReason;
 import com.example.raidsurvivalcore.economy.EconomyService;
 import java.util.List;
 import java.util.Map;
@@ -26,9 +27,31 @@ public final class MoneyCommand implements TabExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("이 명령어는 플레이어만 사용할 수 있습니다.");
+            return consoleCommand(sender, args);
+        }
+        return playerCommand(player, args);
+    }
+
+    private boolean consoleCommand(CommandSender sender, String[] args) {
+        if (args.length >= 3 && args[0].equalsIgnoreCase("pay")) {
+            OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
+            Long amount = parseAmount(sender, args[2]);
+            if (amount == null) return true;
+            boolean ok = economy.adminAdjust(null, target.getUniqueId(), amount, CurrencyReason.ADMIN_ADJUSTMENT, "add").join();
+            sender.sendMessage(ok ? target.getName() + "에게 " + amount + " Crown을 지급했습니다." : "지급 실패: 보유 한도 초과 또는 DB 오류입니다.");
+            if (ok) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                Player online = Bukkit.getPlayer(target.getUniqueId());
+                    if (online != null) online.sendMessage("관리자 지급으로 " + amount + " Crown을 획득했습니다.");
+                });
+            }
             return true;
         }
+        sender.sendMessage("콘솔 사용법: money pay <플레이어> <금액>");
+        return true;
+    }
+
+    private boolean playerCommand(Player player, String[] args) {
         if (args.length == 0) {
             economy.balance(player.getUniqueId()).thenAccept(balance -> Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage(messages.prefixed("money-balance", Map.of("amount", String.valueOf(balance))))));
             return true;
@@ -54,7 +77,7 @@ public final class MoneyCommand implements TabExecutor {
         if (args[0].equalsIgnoreCase("top")) {
             economy.topBalances(10).thenAccept(rows -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (rows.isEmpty()) {
-                    sender.sendMessage("잔액 순위가 비어 있습니다.");
+                    player.sendMessage("잔액 순위가 비어 있습니다.");
                     return;
                 }
                 StringBuilder out = new StringBuilder("<gold>Crown 순위</gold>");
@@ -64,24 +87,24 @@ public final class MoneyCommand implements TabExecutor {
                     String name = offline.getName() == null ? row.playerUuid().toString() : offline.getName();
                     out.append('\n').append(rank++).append(". ").append(name).append(": ").append(row.balance()).append(" Crown");
                 }
-                sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(out.toString()));
+                player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(out.toString()));
             }));
             return true;
         }
-        sender.sendMessage("사용법: /money 또는 /money pay <플레이어> <금액>");
+        player.sendMessage("사용법: /money 또는 /money pay <플레이어> <금액>");
         return true;
     }
 
-    private Long parseAmount(Player player, String raw) {
+    private Long parseAmount(CommandSender sender, String raw) {
         try {
             long amount = Long.parseLong(raw);
             if (amount <= 0) {
-                player.sendMessage(messages.prefixed("economy-failed", Map.of("reason", "금액은 1 이상이어야 합니다.")));
+                sender.sendMessage(messages.prefixed("economy-failed", Map.of("reason", "금액은 1 이상이어야 합니다.")));
                 return null;
             }
             return amount;
         } catch (NumberFormatException e) {
-            player.sendMessage(messages.prefixed("economy-failed", Map.of("reason", "금액은 숫자로 입력해야 합니다: " + raw)));
+            sender.sendMessage(messages.prefixed("economy-failed", Map.of("reason", "금액은 숫자로 입력해야 합니다: " + raw)));
             return null;
         }
     }

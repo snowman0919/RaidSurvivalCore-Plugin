@@ -1,6 +1,8 @@
 package com.example.raidsurvivalcore;
 
 import com.example.raidsurvivalcore.bounty.BountyManager;
+import com.example.raidsurvivalcore.api.RaidCoreEconomyApi;
+import com.example.raidsurvivalcore.api.RaidCoreEconomyApiImpl;
 import com.example.raidsurvivalcore.combat.CombatLogManager;
 import com.example.raidsurvivalcore.combat.CombatManager;
 import com.example.raidsurvivalcore.command.RaidCoreCommand;
@@ -39,6 +41,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.HandlerList;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class RaidSurvivalCorePlugin extends JavaPlugin {
@@ -92,6 +95,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         database.start(cfg.database().file());
         playerData = new PlayerDataRepository(database, getLogger(), cfg.bounty().internalStartingTokens());
         economy = new EconomyService(database, getLogger(), loadEconomySettings());
+        getServer().getServicesManager().register(RaidCoreEconomyApi.class, new RaidCoreEconomyApiImpl(economy), this, ServicePriority.Normal);
         economyIncome = new EconomyIncomeManager(this, economy);
         shop = new ShopService(this);
         shop.reload();
@@ -119,6 +123,7 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (combatLog != null) combatLog.markShutdown();
+        getServer().getServicesManager().unregisterAll(this);
         stopTasks();
         HandlerList.unregisterAll(this);
         if (playerData != null) playerData.flushAll();
@@ -218,11 +223,12 @@ public final class RaidSurvivalCorePlugin extends JavaPlugin {
         long starting = Math.max(0, yml.getLong("currency.new-account-starting-balance", 5000L));
         long hourlyMin = Math.max(0, yml.getLong("income.hourly-general-target-min", 300L));
         long hourlyMax = Math.max(hourlyMin, yml.getLong("income.hourly-general-target-max", 800L));
+        long playtimeInterval = Math.max(1, yml.getLong("income.playtime-interval-minutes", 20L));
         long mobMin = Math.max(0, yml.getLong("income.mob-low-roll-min", 1L));
         long mobMax = Math.max(mobMin, yml.getLong("income.mob-low-roll-max", 5L));
         long advancementTask = Math.max(0, yml.getLong("income.advancement-task-reward", 100L));
         long advancementGoal = Math.max(0, yml.getLong("income.advancement-goal-reward", 300L));
         long advancementChallenge = Math.max(0, yml.getLong("income.advancement-challenge-reward", 1000L));
-        return new EconomySettings(maxPersonal, tax, starting, hourlyMin, hourlyMax, mobMin, mobMax, advancementTask, advancementGoal, advancementChallenge);
+        return new EconomySettings(maxPersonal, tax, starting, hourlyMin, hourlyMax, playtimeInterval, mobMin, mobMax, advancementTask, advancementGoal, advancementChallenge);
     }
 }
